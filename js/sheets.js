@@ -55,7 +55,7 @@ async function _loadSheetIds() {
     });
 }
 
-// Read all rows (skip header row 1), return array of {values:[], rowIndex}
+// Read all rows, return array of {values:[], rowIndex}
 async function readSheet(sheetName, forceRefresh = false) {
     if (!forceRefresh && _cache[sheetName]) return _cache[sheetName];
 
@@ -64,10 +64,14 @@ async function readSheet(sheetName, forceRefresh = false) {
     const data = await _apiRequest(url);
     const allRows = data.values || [];
 
-    // Row 0 is header, data starts at row index 1 (sheet row 2)
-    const result = allRows.slice(1).map((row, i) => ({
+    // Skip row 1 only if it looks like a header (first cell is literally 'id')
+    const hasHeader = allRows.length > 0 && String(allRows[0][0]).toLowerCase() === 'id';
+    const dataRows = hasHeader ? allRows.slice(1) : allRows;
+    const rowOffset = hasHeader ? 2 : 1;
+
+    const result = dataRows.map((row, i) => ({
         values: row,
-        rowIndex: i + 2  // 1-based sheet row number
+        rowIndex: rowOffset + i
     }));
 
     _cache[sheetName] = result;
@@ -138,7 +142,7 @@ function nowIso() {
 }
 
 // ===== work_log =====
-// Columns: id(0) | date(1) | hours(2) | description(3) | amount(4) | note(5) | timestamp(6)
+// Columns: id(0) | date(1) | hours(2) | description(3) | amount(4) | note(5) | timestamp(6) | rate(7)
 
 function _rowToWorkLog(row) {
     const v = row.values;
@@ -150,6 +154,7 @@ function _rowToWorkLog(row) {
         amount: parseFloat(v[4]) || 0,
         note: v[5] || '',
         timestamp: v[6] || '',
+        rate: parseFloat(v[7]) || 700,
         _rowIndex: row.rowIndex
     };
 }
@@ -162,7 +167,8 @@ function _workLogToRow(entry) {
         entry.description,
         entry.amount,
         entry.note,
-        entry.timestamp
+        entry.timestamp,
+        entry.rate || 700
     ];
 }
 
@@ -172,7 +178,7 @@ async function getWorkLogs(forceRefresh) {
 }
 
 async function saveWorkLog(data) {
-    const hourlyRate = 700; // CONFIG.HOURLY_RATE
+    const hourlyRate = parseFloat(data.rate) || 700;
     const existing = await getWorkLogs();
     const found = existing.find(r => r.date === data.date);
 
@@ -183,7 +189,8 @@ async function saveWorkLog(data) {
         description: data.description || '',
         amount: (parseFloat(data.hours) || 0) * hourlyRate,
         note: data.note || '',
-        timestamp: nowIso()
+        timestamp: nowIso(),
+        rate: hourlyRate
     };
 
     if (found) {

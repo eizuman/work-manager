@@ -177,7 +177,7 @@ const CalendarModule = (() => {
                 </button>
             </div>
             <div class="cal-detail-card">
-                <div class="cal-detail-time">${entry.hours} ч</div>
+                <div class="cal-detail-time">${entry.hours} ч · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>
                 <div class="cal-detail-desc">${escapeHtml(entry.description || 'Без описания')}</div>
                 ${entry.note ? `<div class="cal-detail-desc" style="margin-top:6px;color:var(--text-muted);font-size:13px;">📝 ${escapeHtml(entry.note)}</div>` : ''}
             </div>
@@ -258,10 +258,16 @@ const CalendarModule = (() => {
         </div>
 
         <div class="form-group">
-            <label class="form-label">Отработанные часы</label>
-            <div class="form-control-with-icon">
-                <input type="number" class="form-control" id="cal-hours" value="${existingEntry ? existingEntry.hours : ''}" placeholder="8" min="0" max="24" step="0.5">
-                <span class="form-control-icon" style="font-size:13px;font-weight:600;color:var(--text-muted)">ч</span>
+            <label class="form-label">Отработанные часы / Ставка</label>
+            <div style="display:flex;gap:10px">
+                <div class="form-control-with-icon" style="flex:1">
+                    <input type="number" class="form-control" id="cal-hours" value="${existingEntry ? existingEntry.hours : ''}" placeholder="8" min="0" max="24" step="0.5">
+                    <span class="form-control-icon" style="font-size:13px;font-weight:600;color:var(--text-muted)">ч</span>
+                </div>
+                <div class="form-control-with-icon" style="flex:1">
+                    <input type="number" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700" min="1" step="50">
+                    <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
+                </div>
             </div>
         </div>
 
@@ -290,9 +296,11 @@ const CalendarModule = (() => {
             }
 
             try {
+                const rate = parseFloat(content.querySelector('#cal-rate').value) || App.getHourlyRate();
                 const saved = await App.withLoading(() => Sheets.saveWorkLog({
                     date: ds,
                     hours,
+                    rate,
                     description: content.querySelector('#cal-desc').value.trim(),
                     note: content.querySelector('#cal-note').value.trim()
                 }));

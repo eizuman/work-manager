@@ -41,7 +41,7 @@ const FinanceModule = (() => {
             else { paid += e.amount; }
         });
 
-        hours = earned / 700; // HOURLY_RATE
+        hours = earned / App.getHourlyRate();
         return { hours, earned, paid };
     }
 

@@ -152,6 +152,48 @@ function handleError(err, context = '') {
     showToast((context ? context + ': ' : '') + msg, 'error');
 }
 
+// ===== Settings =====
+function getHourlyRate() {
+    return parseInt(localStorage.getItem('hourly_rate') || '700') || 700;
+}
+
+function setHourlyRate(val) {
+    localStorage.setItem('hourly_rate', String(parseInt(val) || 700));
+}
+
+function openSettings() {
+    const rate = getHourlyRate();
+    const html = `
+    <div class="bs-header">
+        <button class="icon-btn" id="bs-close-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <span class="bs-title">Настройки</span>
+        <div style="width:40px"></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+        <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Почасовая ставка по умолчанию</label>
+            <div class="form-control-with-icon">
+                <input type="number" class="form-control" id="settings-rate" value="${rate}" min="1" step="50" placeholder="700">
+                <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
+            </div>
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня. Для каждой записи можно указать свою ставку.</div>
+        </div>
+    </div>
+    <button class="btn btn-primary" id="settings-save-btn">Сохранить</button>`;
+
+    const content = showBottomSheet(html);
+    content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+    content.querySelector('#settings-save-btn').addEventListener('click', () => {
+        const val = parseInt(content.querySelector('#settings-rate').value);
+        if (!val || val <= 0) { showToast('Укажите ставку', 'error'); return; }
+        setHourlyRate(val);
+        hideBottomSheet();
+        showToast('Настройки сохранены');
+    });
+}
+
 // Tag color utility
 function tagColorClass(tagId) {
     let hash = 0;
@@ -185,6 +227,7 @@ window.App = {
     showToast, showLoading, hideLoading, withLoading,
     handleError, tagColorClass,
     formatDate, formatMonthYear, formatAmount,
+    getHourlyRate, setHourlyRate,
     MONTHS_RU, MONTHS_FULL_RU
 };
 
@@ -217,6 +260,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const dy = e.changedTouches[0].clientY - bsTouchStartY;
         if (dy > 80) hideBottomSheet();
     }, { passive: true });
+
+    // Settings buttons (header + sidebar)
+    document.getElementById('header-settings-btn').addEventListener('click', openSettings);
+    document.querySelector('.sidebar-settings').addEventListener('click', openSettings);
 
     // Load default module
     switchModule('calendar');
