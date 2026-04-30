@@ -17,16 +17,21 @@ function initLogin() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CONFIG.CLIENT_ID,
                 scope: CONFIG.SCOPES,
+                prompt: 'select_account',
                 callback: handleAuthCallback
             });
             signInBtn.removeAttribute('disabled');
+            signInBtn.classList.remove('loading');
         }
     }, 100);
 
     signInBtn.addEventListener('click', () => {
-        if (!tokenClient) return;
-        loadingOverlay.classList.remove('hidden');
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        if (!tokenClient) {
+            showAuthError('Загрузка... попробуйте через секунду');
+            return;
+        }
+        // Don't show overlay here — it can suppress the popup in some browsers
+        tokenClient.requestAccessToken();
     });
 
     document.getElementById('error-close')?.addEventListener('click', () => {
@@ -36,10 +41,9 @@ function initLogin() {
 
 async function handleAuthCallback(response) {
     const loadingOverlay = document.getElementById('loading-overlay');
-    loadingOverlay.classList.add('hidden');
 
     if (response.error) {
-        showAuthError('Ошибка авторизации: ' + response.error_description || response.error);
+        showAuthError('Ошибка авторизации: ' + (response.error_description || response.error));
         return;
     }
 
