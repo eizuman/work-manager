@@ -31,6 +31,12 @@ const CalendarModule = (() => {
         return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
+    function formatHours(h) {
+        const hrs = Math.floor(h);
+        const mins = Math.round((h - hrs) * 60);
+        return mins > 0 ? `${hrs}ч ${String(mins).padStart(2,'0')}м` : `${hrs}ч 00м`;
+    }
+
     function render() {
         const today = new Date();
         const todayStr = dateStr(today.getFullYear(), today.getMonth(), today.getDate());
@@ -66,11 +72,18 @@ const CalendarModule = (() => {
             if (isToday) classes += ' today';
             if (isWeekend) classes += ' weekend';
 
+            const dot = entry ? '<div class="cal-day-dot"></div>' : '';
+            const content = entry ? `<div class="cal-day-content">
+                <span class="cal-hours-pill">${formatHours(entry.hours)}</span>
+                ${entry.description ? `<span class="cal-day-desc-text">${escapeHtml(entry.description.slice(0, 60))}</span>` : ''}
+            </div>` : '';
+
             daysHTML += `<div class="${classes}" data-date="${ds}">
                 <div class="cal-day-inner">
                     <span class="cal-day-num">${day}</span>
                 </div>
-                ${entry ? '<div class="cal-day-dot"></div>' : ''}
+                ${dot}
+                ${content}
             </div>`;
         }
 
@@ -99,6 +112,7 @@ const CalendarModule = (() => {
                             <polyline points="15,18 9,12 15,6"/>
                         </svg>
                     </button>
+                    <button class="cal-nav-btn cal-today-btn hidden" id="cal-today" style="display:none">Сегодня</button>
                     <button class="cal-nav-btn" id="cal-next" aria-label="Следующий месяц">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="9,18 15,12 9,6"/>
@@ -116,6 +130,8 @@ const CalendarModule = (() => {
     }
 
     function bindEvents() {
+        const today = new Date();
+
         document.getElementById('cal-prev').addEventListener('click', () => {
             currentMonth--;
             if (currentMonth < 0) { currentMonth = 11; currentYear--; }
@@ -127,6 +143,17 @@ const CalendarModule = (() => {
             if (currentMonth > 11) { currentMonth = 0; currentYear++; }
             render();
         });
+
+        const todayBtn = document.getElementById('cal-today');
+        if (todayBtn) {
+            // Show "Сегодня" on desktop
+            if (window.innerWidth >= 768) todayBtn.style.display = '';
+            todayBtn.addEventListener('click', () => {
+                currentYear = today.getFullYear();
+                currentMonth = today.getMonth();
+                render();
+            });
+        }
 
         document.getElementById('calendar-days').addEventListener('click', (e) => {
             const cell = e.target.closest('.cal-day[data-date]');

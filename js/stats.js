@@ -118,65 +118,84 @@ const StatsModule = (() => {
         const bestWeek = getBestWeek(weeks);
         const topWorks = getTopWorks();
 
+        const now = new Date();
+        const monthName = App.MONTHS_FULL_RU[now.getMonth()] + ' ' + now.getFullYear();
+        const totalTopCount = topWorks.reduce((s, w) => s + w.count, 0) || 1;
+
         container.innerHTML = `
         <div class="stats-wrap">
             <div class="stats-header">
-                <div class="stats-title">Обзор статистики</div>
-                <div class="stats-period">За текущий месяц</div>
-            </div>
-
-            <div class="stats-card">
-                <div class="stats-card-header">
-                    <div class="stats-card-title">Эффективность</div>
-                    <div class="stats-card-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                </div>
-                <div class="stats-sub">Среднее за день</div>
                 <div>
-                    <span class="stats-big-num">${monthStats.avgHours.toFixed(1)}</span>
-                    <span class="stats-big-unit">ч</span>
-                </div>
-                <div style="margin-top:8px;display:flex;gap:16px">
-                    <div>
-                        <div class="stats-sub">Всего часов</div>
-                        <div style="font-size:18px;font-weight:700;color:var(--text-primary)">${monthStats.totalHours.toFixed(1)}</div>
-                    </div>
-                    <div>
-                        <div class="stats-sub">Рабочих дней</div>
-                        <div style="font-size:18px;font-weight:700;color:var(--text-primary)">${monthStats.daysWorked}</div>
-                    </div>
-                    ${bestWeek ? `<div>
-                        <div class="stats-sub">Лучшая неделя</div>
-                        <div style="font-size:18px;font-weight:700;color:var(--text-primary)">${bestWeek.hours.toFixed(0)} ч</div>
-                    </div>` : ''}
+                    <div class="stats-title">Сводка за Месяц</div>
+                    <div class="stats-period">${monthName}</div>
                 </div>
             </div>
 
-            <div class="stats-card">
-                <div class="stats-card-header">
-                    <div class="stats-card-title">Движение средств</div>
-                    <div class="stats-card-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            <!-- KPI row (desktop: 3 cards in a row) -->
+            <div class="stats-kpi-row">
+                <div class="stats-card">
+                    <div class="stats-sub" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;font-weight:600">В среднем часов / день</div>
+                    <div style="margin-top:4px">
+                        <span class="stats-big-num">${monthStats.avgHours.toFixed(1)}</span>
+                        <span class="stats-big-unit">ч.</span>
                     </div>
                 </div>
-                <div class="money-row">
-                    <div class="money-icon income">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                <div class="stats-card">
+                    <div class="stats-sub" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;font-weight:600">Лучшая неделя</div>
+                    <div style="margin-top:4px">
+                        <span class="stats-big-num">${bestWeek ? bestWeek.hours.toFixed(0) : 0}</span>
+                        <span class="stats-big-unit">ч.</span>
                     </div>
-                    <div class="money-label">Доходы</div>
-                    <div class="money-value income">+ ${App.formatAmount(finStats.income)}</div>
+                    ${bestWeek ? `<div class="stats-sub" style="margin-top:4px">${bestWeek.label}</div>` : ''}
                 </div>
-                <div class="money-row">
-                    <div class="money-icon expense">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C62828" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                <div class="stats-card">
+                    <div class="stats-sub" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;font-weight:600">Итого часов</div>
+                    <div style="margin-top:4px">
+                        <span class="stats-big-num">${monthStats.totalHours.toFixed(0)}</span>
+                        <span class="stats-big-unit">ч.</span>
                     </div>
-                    <div class="money-label">Выплаты</div>
-                    <div class="money-value expense">- ${App.formatAmount(finStats.expense)}</div>
+                    <div class="stats-sub" style="margin-top:4px">${monthStats.daysWorked} рабочих дней</div>
                 </div>
             </div>
 
-            <div class="stats-card">
+            <!-- Lower section: two-column on desktop -->
+            <div class="stats-lower-grid">
+                <div class="stats-card">
+                    <div class="stats-card-title" style="margin-bottom:12px">Движение средств</div>
+                    <div class="money-row">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-medium);margin-right:10px;flex-shrink:0"></span>
+                        <div class="money-label">Доход</div>
+                        <div class="money-value income">${App.formatAmount(finStats.income)}</div>
+                    </div>
+                    <div class="money-row">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red-medium);margin-right:10px;flex-shrink:0"></span>
+                        <div class="money-label">Расходы</div>
+                        <div class="money-value expense">${App.formatAmount(finStats.expense)}</div>
+                    </div>
+                    <div class="money-row" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px">
+                        <div class="money-label" style="font-weight:700;color:var(--text-primary)">Чистая прибыль</div>
+                        <div class="money-value income" style="font-size:17px">${App.formatAmount(finStats.income - finStats.expense)}</div>
+                    </div>
+                </div>
+
+                ${topWorks.length > 0 ? `
+                <div class="stats-card">
+                    <div class="stats-card-title" style="margin-bottom:12px">Популярные виды работ</div>
+                    ${topWorks.map(w => {
+                        const pct = Math.round(w.count / totalTopCount * 100);
+                        return `<div class="top-work-item" style="flex-direction:column;align-items:stretch;padding:8px 0">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                                <span class="top-work-title">${escapeHtml(w.word)}</span>
+                                <span class="top-work-pct">${pct}%</span>
+                            </div>
+                            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+                        </div>`;
+                    }).join('')}
+                </div>` : '<div class="stats-card"><div class="stats-card-title">Нет данных</div></div>'}
+            </div>
+
+            <!-- Charts -->
+            <div class="stats-card" style="margin-top:16px">
                 <div class="stats-card-header">
                     <div class="stats-card-title">Часы по неделям</div>
                 </div>
@@ -185,7 +204,7 @@ const StatsModule = (() => {
                 </div>
             </div>
 
-            <div class="stats-card">
+            <div class="stats-card" style="margin-top:16px">
                 <div class="stats-card-header">
                     <div class="stats-card-title">Часы по дням месяца</div>
                 </div>
@@ -193,24 +212,6 @@ const StatsModule = (() => {
                     <canvas id="chart-daily" height="140"></canvas>
                 </div>
             </div>
-
-            ${topWorks.length > 0 ? `
-            <div class="stats-card">
-                <div class="stats-card-header">
-                    <div class="stats-card-title">Топ работ</div>
-                    <div class="stats-card-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/></svg>
-                    </div>
-                </div>
-                ${topWorks.map(w => `
-                <div class="top-work-item">
-                    <div class="top-work-info">
-                        <div class="top-work-title">${escapeHtml(w.word)}</div>
-                        <div class="top-work-sub">встречается ${w.count} раз</div>
-                    </div>
-                    <div class="top-work-hours">${w.count} ×</div>
-                </div>`).join('')}
-            </div>` : ''}
         </div>`;
 
         // Draw charts after DOM is ready

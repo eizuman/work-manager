@@ -21,6 +21,8 @@ function checkAuth() {
     return true;
 }
 
+const isDesktop = () => window.innerWidth >= 768;
+
 // ===== Module switching =====
 function switchModule(name) {
     if (!MODULES[name]) return;
@@ -38,13 +40,19 @@ function switchModule(name) {
     container.classList.remove('hidden');
     container.classList.add('active');
 
-    // Update nav
-    document.querySelectorAll('.nav-item').forEach(btn => {
+    // Update mobile nav
+    document.querySelectorAll('#bottom-nav .nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.module === name);
+    });
+
+    // Update sidebar nav
+    document.querySelectorAll('.sidebar-nav-item[data-module]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.module === name);
     });
 
     // Update header title
-    document.getElementById('header-title').textContent = MODULES[name].title;
+    document.getElementById('header-title').textContent =
+        isDesktop() ? 'Рабочая панель' : MODULES[name].title;
 
     // Init module (renders into container)
     MODULES[name].init(container);
@@ -184,9 +192,15 @@ window.App = {
 document.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) return;
 
-    // Bottom nav click
+    // Bottom nav click (mobile)
     document.getElementById('bottom-nav').addEventListener('click', (e) => {
-        const btn = e.target.closest('.nav-item');
+        const btn = e.target.closest('.nav-item[data-module]');
+        if (btn) switchModule(btn.dataset.module);
+    });
+
+    // Sidebar nav click (desktop)
+    document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sidebar-nav-item[data-module]');
         if (btn) switchModule(btn.dataset.module);
     });
 

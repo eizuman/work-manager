@@ -39,23 +39,48 @@ const PurchasesModule = (() => {
 
         container.innerHTML = `
         <div class="purchases-wrap">
-            <div class="total-card">
+            <!-- Mobile total card -->
+            <div class="total-card mobile-only" style="margin-bottom:20px">
                 <div class="total-label">ИТОГО К ПОКУПКЕ</div>
                 <div class="total-amount">${App.formatAmount(total)}</div>
             </div>
 
-            <div class="purchase-section-title">К покупке</div>
+            <!-- Desktop header -->
+            <div class="purchases-desktop-header desktop-only">
+                <div class="purchases-title-block">
+                    <div class="purchase-section-title" style="font-size:22px;font-weight:700;margin-bottom:2px">Закупки</div>
+                    <div class="purchases-subtitle">Управление необходимыми приобретениями для задач.</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                    <div class="purchase-total-card">
+                        <div class="purchase-total-label">ИТОГО К ПОКУПКЕ</div>
+                        <div class="purchase-total-amount">${App.formatAmount(total)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="purchase-section-header">
+                <div class="purchase-section-title">К покупке</div>
+                <span class="purchase-count">${pending.length} позиц${pending.length === 1 ? 'ия' : pending.length < 5 ? 'ии' : 'ий'}</span>
+            </div>
             ${pending.length === 0
                 ? '<div class="empty-state" style="padding:20px 0"><div class="empty-state-text" style="color:var(--text-muted)">Список пуст</div></div>'
                 : `<div class="purchase-list">${pending.map(p => renderPurchaseItem(p)).join('')}</div>`}
 
+            <button class="btn btn-outline desktop-only" id="add-purchase-btn-desktop" style="width:auto;padding:8px 16px;font-size:14px;margin-bottom:20px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Добавить позицию
+            </button>
+
             ${bought.length > 0 ? `
-            <div class="purchase-section-title bought">Куплено</div>
+            <div class="purchase-section-header">
+                <div class="purchase-section-title bought">Куплено</div>
+            </div>
             <div class="purchase-list">${bought.map(p => renderPurchaseItem(p)).join('')}</div>
             ` : ''}
         </div>
 
-        <button class="fab" id="add-purchase-btn" aria-label="Добавить закупку">
+        <button class="fab mobile-only" id="add-purchase-btn" aria-label="Добавить закупку">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>

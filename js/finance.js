@@ -58,38 +58,65 @@ const FinanceModule = (() => {
 
         const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.timestamp.localeCompare(a.timestamp));
 
+        const addBtnHtml = `<button class="fab" id="add-finance-btn" aria-label="Добавить транзакцию">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span class="fab-label">Новая транзакция</span>
+        </button>`;
+
         container.innerHTML = `
         <div class="finance-wrap">
             <div class="balance-card">
-                <div class="balance-label">ТЕКУЩИЙ СТАТУС</div>
-                <div class="balance-amount ${balanceStatus}">${balanceText}</div>
+                <div>
+                    <div class="balance-label">ТЕКУЩИЙ БАЛАНС</div>
+                    <div class="balance-amount ${balanceStatus}">${balanceText}</div>
+                </div>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-val">${stats.hours.toFixed(1)}</div>
-                    <div class="stat-lbl">Часов в месяце</div>
+                    <div class="stat-lbl">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ОТРАБОТАНО
+                    </div>
+                    <div class="stat-val">${stats.hours.toFixed(0)} ч</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-val">${Math.round(stats.earned / 1000)}к</div>
-                    <div class="stat-lbl">Заработано</div>
+                    <div class="stat-lbl">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+                        ЗАРАБОТАНО
+                    </div>
+                    <div class="stat-val">${App.formatAmount(stats.earned)}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-val">${Math.round(stats.paid / 1000)}к</div>
-                    <div class="stat-lbl">Выплачено</div>
+                    <div class="stat-lbl">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        ВЫПЛАЧЕНО
+                    </div>
+                    <div class="stat-val">${App.formatAmount(stats.paid)}</div>
                 </div>
             </div>
 
-            <div class="finance-list-title">История операций</div>
+            <div class="finance-list-title">
+                <span>История транзакций</span>
+                <span class="desktop-only">${addBtnHtml.replace('class="fab"', 'class="fab desktop-add-btn"')}</span>
+            </div>
 
             <div class="tx-list" id="tx-list">
+                <div class="tx-table-head">
+                    <span>Дата</span>
+                    <span>Тип операции</span>
+                    <span style="text-align:right">Сумма</span>
+                    <span></span>
+                </div>
                 ${sortedEntries.length === 0
                     ? '<div class="empty-state"><div class="empty-state-icon">💰</div><div class="empty-state-text">Транзакций нет</div></div>'
                     : sortedEntries.map(e => renderTxItem(e)).join('')}
             </div>
         </div>
 
-        <button class="fab" id="add-finance-btn" aria-label="Добавить транзакцию">
+        <button class="fab mobile-only" id="add-finance-btn" aria-label="Добавить транзакцию">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -102,11 +129,15 @@ const FinanceModule = (() => {
         const isWork = e.type === 'work';
         const sign = isWork ? '+' : '-';
         const cls = isWork ? 'positive' : 'negative';
+        const dotCls = isWork ? 'work' : e.type;
+        const label = e.description || TYPE_LABELS[e.type] || e.type;
         return `
         <div class="tx-item" data-id="${e.id}">
             <div class="tx-info">
                 <div class="tx-date">${App.formatDate(e.date)}</div>
-                <div class="tx-desc">${escapeHtml(e.description || TYPE_LABELS[e.type] || e.type)}</div>
+                <div class="tx-desc">
+                    <span class="tx-type-dot ${dotCls}"></span>${escapeHtml(label)}
+                </div>
             </div>
             <div class="tx-amount ${cls}">${sign}${App.formatAmount(e.amount)}</div>
             <div class="tx-actions">
@@ -121,7 +152,8 @@ const FinanceModule = (() => {
     }
 
     function bindEvents() {
-        container.querySelector('#add-finance-btn').addEventListener('click', () => openFinanceForm(null));
+        container.querySelector('#add-finance-btn')?.addEventListener('click', () => openFinanceForm(null));
+        container.querySelector('.desktop-add-btn')?.addEventListener('click', () => openFinanceForm(null));
 
         container.querySelector('#tx-list').addEventListener('click', (e) => {
             const editBtn = e.target.closest('.edit-tx');

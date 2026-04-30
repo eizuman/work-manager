@@ -101,6 +101,13 @@ const TasksModule = (() => {
 
         container.innerHTML = `
         <div class="tasks-wrap">
+            <div class="tasks-desktop-header">
+                <div class="tasks-desktop-title">Мои Задачи</div>
+                <button class="fab desktop-add-task-btn" id="add-task-btn-desktop" aria-label="Новая задача">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Новая задача
+                </button>
+            </div>
             <div class="filters-bar" id="filters-bar">
                 ${chipHtml}
                 ${weatherChips}
@@ -111,7 +118,7 @@ const TasksModule = (() => {
             </div>
             ${renderTagsManage()}
         </div>
-        <button class="fab" id="add-task-btn" aria-label="Добавить задачу">
+        <button class="fab mobile-only" id="add-task-btn" aria-label="Добавить задачу">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -127,6 +134,9 @@ const TasksModule = (() => {
         const weatherIcon = isDone
             ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`
             : (WEATHER_ICONS[task.weather] || WEATHER_ICONS.any);
+
+        const statusLabels = { new: 'Ожидает', in_progress: 'В работе', done: 'Завершено' };
+        const statusCls = { new: 'new', in_progress: 'in_progress', done: 'done' };
 
         return `
         <div class="task-item${isDone ? ' done' : ''}" data-id="${task.id}" draggable="true">
@@ -145,6 +155,9 @@ const TasksModule = (() => {
                 ${tagPills ? `<div class="task-tags">${tagPills}</div>` : ''}
             </div>
             <div class="task-weather${isDone ? ' done' : ''}">${weatherIcon}</div>
+            <div class="task-status-badge ${statusCls[task.status] || 'new'}">
+                ${statusLabels[task.status] || task.status}
+            </div>
             <div class="task-actions">
                 <button class="task-action-btn edit-task" data-id="${task.id}" aria-label="Редактировать">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -193,8 +206,9 @@ const TasksModule = (() => {
             render();
         });
 
-        // FAB
-        container.querySelector('#add-task-btn').addEventListener('click', () => openTaskForm(null));
+        // FAB (mobile + desktop)
+        container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
+        container.querySelector('#add-task-btn-desktop')?.addEventListener('click', () => openTaskForm(null));
 
         // Task list actions
         const taskList = container.querySelector('#task-list');
