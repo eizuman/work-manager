@@ -265,7 +265,7 @@ const CalendarModule = (() => {
                     <span class="form-control-icon" style="font-size:13px;font-weight:600;color:var(--text-muted)">ч</span>
                 </div>
                 <div class="form-control-with-icon" style="flex:1">
-                    <input type="number" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700" min="1" step="50">
+                    <input type="number" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700.00" min="0.01" step="0.01">
                     <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
                 </div>
             </div>
