@@ -79,13 +79,13 @@ async function readSheet(sheetName, forceRefresh = false) {
 }
 
 async function appendRow(sheetName, rowValues) {
-    const range = encodeURIComponent(`${sheetName}!A:Z`);
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
-    await _apiRequest(url, {
-        method: 'POST',
-        body: JSON.stringify({ values: [rowValues] })
-    });
-    delete _cache[sheetName];
+    // Count all existing rows in column A to find the precise next empty row,
+    // avoiding INSERT_ROWS table-detection quirks with the :append endpoint.
+    const colRange = encodeURIComponent(`${sheetName}!A:A`);
+    const colUrl = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${colRange}`;
+    const colData = await _apiRequest(colUrl);
+    const nextRow = ((colData && colData.values) ? colData.values.length : 0) + 1;
+    await updateRow(sheetName, nextRow, rowValues);
 }
 
 async function updateRow(sheetName, rowIndex, rowValues) {
