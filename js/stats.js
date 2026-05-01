@@ -3,7 +3,6 @@
 const StatsModule = (() => {
     let container = null;
     let workLogs = [];
-    let financeEntries = [];
 
     async function init(el) {
         container = el;
@@ -13,12 +12,10 @@ const StatsModule = (() => {
 
     async function loadData() {
         try {
-            [workLogs, financeEntries] = await App.withLoading(() =>
-                Promise.all([Sheets.getWorkLogs(), Sheets.getFinanceEntries()])
-            );
+            workLogs = await App.withLoading(() => Sheets.getWorkLogs());
         } catch (err) {
             App.handleError(err, 'Загрузка статистики');
-            workLogs = []; financeEntries = [];
+            workLogs = [];
         }
     }
 
@@ -31,19 +28,6 @@ const StatsModule = (() => {
         const daysWorked = monthLogs.length;
         const avgHours = daysWorked > 0 ? totalHours / daysWorked : 0;
         return { totalHours, avgHours, daysWorked };
-    }
-
-    function getFinanceStats() {
-        const now = new Date();
-        const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `${y}-${m}`;
-        let income = 0, expense = 0;
-        financeEntries.forEach(e => {
-            if (!e.date.startsWith(prefix)) return;
-            if (e.type === 'work') income += e.amount;
-            else expense += e.amount;
-        });
-        return { income, expense };
     }
 
     function getWeeklyHours() {
@@ -94,33 +78,13 @@ const StatsModule = (() => {
         return weeks.reduce((best, w) => w.hours > best.hours ? w : best, weeks[0]);
     }
 
-    function getTopWorks() {
-        // Count words/phrases in descriptions
-        const wordCount = {};
-        workLogs.forEach(l => {
-            if (!l.description) return;
-            const words = l.description.split(/[\s,;.!?]+/).filter(w => w.length > 3);
-            words.forEach(w => {
-                const lower = w.toLowerCase();
-                wordCount[lower] = (wordCount[lower] || 0) + 1;
-            });
-        });
-        return Object.entries(wordCount)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([word, count]) => ({ word, count }));
-    }
-
     function render() {
         const monthStats = getCurrentMonthStats();
-        const finStats = getFinanceStats();
         const weeks = getWeeklyHours();
         const bestWeek = getBestWeek(weeks);
-        const topWorks = getTopWorks();
 
         const now = new Date();
         const monthName = App.MONTHS_FULL_RU[now.getMonth()] + ' ' + now.getFullYear();
-        const totalTopCount = topWorks.reduce((s, w) => s + w.count, 0) || 1;
 
         container.innerHTML = `
         <div class="stats-wrap">
@@ -156,42 +120,6 @@ const StatsModule = (() => {
                     </div>
                     <div class="stats-sub" style="margin-top:4px">${monthStats.daysWorked} рабочих дней</div>
                 </div>
-            </div>
-
-            <!-- Lower section: two-column on desktop -->
-            <div class="stats-lower-grid">
-                <div class="stats-card">
-                    <div class="stats-card-title" style="margin-bottom:12px">Движение средств</div>
-                    <div class="money-row">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-medium);margin-right:10px;flex-shrink:0"></span>
-                        <div class="money-label">Доход</div>
-                        <div class="money-value income">${App.formatAmount(finStats.income)}</div>
-                    </div>
-                    <div class="money-row">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red-medium);margin-right:10px;flex-shrink:0"></span>
-                        <div class="money-label">Расходы</div>
-                        <div class="money-value expense">${App.formatAmount(finStats.expense)}</div>
-                    </div>
-                    <div class="money-row" style="border-top:2px solid var(--border);margin-top:4px;padding-top:12px">
-                        <div class="money-label" style="font-weight:700;color:var(--text-primary)">Чистая прибыль</div>
-                        <div class="money-value income" style="font-size:17px">${App.formatAmount(finStats.income - finStats.expense)}</div>
-                    </div>
-                </div>
-
-                ${topWorks.length > 0 ? `
-                <div class="stats-card">
-                    <div class="stats-card-title" style="margin-bottom:12px">Популярные виды работ</div>
-                    ${topWorks.map(w => {
-                        const pct = Math.round(w.count / totalTopCount * 100);
-                        return `<div class="top-work-item" style="flex-direction:column;align-items:stretch;padding:8px 0">
-                            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                <span class="top-work-title">${escapeHtml(w.word)}</span>
-                                <span class="top-work-pct">${pct}%</span>
-                            </div>
-                            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-                        </div>`;
-                    }).join('')}
-                </div>` : '<div class="stats-card"><div class="stats-card-title">Нет данных</div></div>'}
             </div>
 
             <!-- Charts -->
