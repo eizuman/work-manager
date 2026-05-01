@@ -768,6 +768,18 @@ select.form-control {
     background: var(--text-muted);
 }
 
+/* Note indicator — small dot at top-right of day cell */
+.cal-day-note-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    pointer-events: none;
+}
+
 /* Calendar day content (hidden on mobile, shown on desktop) */
 .cal-day-content {
     display: none;
@@ -1072,7 +1084,7 @@ select.form-control {
 }
 
 .tx-amount.positive { color: var(--orange); }
-.tx-amount.negative { color: var(--text-secondary); }
+.tx-amount.negative { color: var(--green-medium); }
 
 .tx-actions {
     display: flex;
@@ -1879,21 +1891,7 @@ canvas {
     }
 
     /* Header */
-    .app-header {
-        position: relative;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg);
-    }
-
-    .header-title {
-        position: static;
-        transform: none;
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--text-secondary);
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
-    }
+    .app-header { display: none; }
 
     /* Main content */
     .app-main {
@@ -2055,7 +2053,7 @@ canvas {
         flex-shrink: 0;
     }
     .tx-type-dot.work { background: var(--green-medium); }
-    .tx-type-dot.advance, .tx-type-dot.payment { background: var(--red-medium); }
+    .tx-type-dot.advance, .tx-type-dot.payment { background: var(--green-medium); }
 
     /* ===== TASKS DESKTOP ===== */
     .tasks-wrap { padding: 0; }

@@ -51,8 +51,7 @@ function switchModule(name) {
     });
 
     // Update header title
-    document.getElementById('header-title').textContent =
-        isDesktop() ? 'Рабочая панель' : MODULES[name].title;
+    document.getElementById('header-title').textContent = MODULES[name].title;
 
     // Init module (renders into container)
     MODULES[name].init(container);
@@ -261,8 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dy > 80) hideBottomSheet();
     }, { passive: true });
 
-    // Settings buttons (header + sidebar)
-    document.getElementById('header-settings-btn').addEventListener('click', openSettings);
+    // Settings button (sidebar)
     document.querySelector('.sidebar-settings').addEventListener('click', openSettings);
 
     // Load default module

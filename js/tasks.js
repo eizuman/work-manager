@@ -96,7 +96,7 @@ const TasksModule = (() => {
 
         // Task list
         const taskItemsHtml = filtered.length === 0
-            ? '<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">Задач нет</div></div>'
+            ? '<div class="empty-state"><div class="empty-state-text">Задач нет</div></div>'
             : `<div class="task-list-inner" id="task-list-inner">${filtered.map(renderTaskItem).join('')}</div>`;
 
         container.innerHTML = `

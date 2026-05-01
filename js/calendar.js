@@ -133,9 +133,11 @@ const CalendarModule = (() => {
                 }
             }
 
+            const noteDot = (entry && entry.note) ? '<div class="cal-day-note-dot"></div>' : '';
+
             daysHTML += `<div class="${classes}" data-date="${ds}">
                 <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
-                ${dot}${content}
+                ${noteDot}${dot}${content}
             </div>`;
         }
 

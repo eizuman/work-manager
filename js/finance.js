@@ -85,7 +85,7 @@ const FinanceModule = (() => {
                 <div class="stat-card">
                     <div class="stat-lbl">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
-                        ЗАРАБОТАНО
+                        ОТРАБОТАНО В ₽
                     </div>
                     <div class="stat-val">${App.formatAmount(stats.earned)}</div>
                 </div>
