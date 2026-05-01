@@ -5,11 +5,10 @@ const TasksModule = (() => {
     let tasks = [];
     let tags = [];
 
-    // Active filters
-    let filterStatus = 'all';
-    let filterWeather = 'all';
-    let filterTag = 'all';
-    let filterAssignee = 'all';
+    // Active filters (Sets for multi-select; empty = show all)
+    let filterStatuses = new Set();
+    let filterWeathers = new Set();
+    let filterTagIds = new Set();
 
     // Drag state
     let dragEl = null;
@@ -43,13 +42,9 @@ const TasksModule = (() => {
 
     function getFilteredTasks() {
         return tasks.filter(t => {
-            if (filterStatus !== 'all' && t.status !== filterStatus) return false;
-            if (filterWeather !== 'all' && t.weather !== filterWeather && t.weather !== 'any') return false;
-            if (filterTag !== 'all' && !t.tags.includes(filterTag)) return false;
-            if (filterAssignee !== 'all') {
-                const map = { me: 'Я', worker: 'Работник' };
-                if (!t.assignees.includes(map[filterAssignee])) return false;
-            }
+            if (filterStatuses.size > 0 && !filterStatuses.has(t.status)) return false;
+            if (filterWeathers.size > 0 && !filterWeathers.has(t.weather) && t.weather !== 'any') return false;
+            if (filterTagIds.size > 0 && !t.tags.some(tid => filterTagIds.has(tid))) return false;
             return true;
         });
     }
@@ -70,28 +65,27 @@ const TasksModule = (() => {
         const uniqueTagIds = [...new Set(tasks.flatMap(t => t.tags))];
 
         // Build filter chips
-        const statusChips = [
+        const statusHtml = [
             { val: 'all', label: 'Все' },
             { val: 'new', label: 'Новые' },
             { val: 'in_progress', label: 'В работе' },
             { val: 'done', label: 'Выполнены' }
-        ];
+        ].map(c => {
+            const isActive = c.val === 'all' ? filterStatuses.size === 0 : filterStatuses.has(c.val);
+            return `<button class="filter-chip${isActive ? ' active' : ''}" data-filter-status="${c.val}">${c.label}</button>`;
+        }).join('');
 
-        const chipHtml = statusChips.map(c =>
-            `<button class="filter-chip${filterStatus === c.val ? ' active' : ''}" data-filter-status="${c.val}">${c.label}</button>`
-        ).join('');
-
-        const weatherChips = [
+        const weatherHtml = [
             { val: 'sun', label: '☀️ Ясно' },
             { val: 'rain', label: '🌧 Дождь' }
         ].map(c =>
-            `<button class="filter-chip${filterWeather === c.val ? ' active' : ''}" data-filter-weather="${c.val}">${c.label}</button>`
+            `<button class="filter-chip${filterWeathers.has(c.val) ? ' active' : ''}" data-filter-weather="${c.val}">${c.label}</button>`
         ).join('');
 
-        const tagChips = uniqueTagIds.map(tid => {
+        const tagChipsHtml = uniqueTagIds.map(tid => {
             const tag = getTagById(tid);
             if (!tag) return '';
-            return `<button class="filter-chip${filterTag === tid ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
+            return `<button class="filter-chip${filterTagIds.has(tid) ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
         }).join('');
 
         // Task list
@@ -109,9 +103,11 @@ const TasksModule = (() => {
                 </button>
             </div>
             <div class="filters-bar" id="filters-bar">
-                ${chipHtml}
-                ${weatherChips}
-                ${tagChips}
+                <div class="filters-row">
+                    <div class="filters-row-status">${statusHtml}</div>
+                    <div class="filters-row-weather">${weatherHtml}</div>
+                </div>
+                ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
             </div>
             <div class="task-list" id="task-list">
                 ${taskItemsHtml}
@@ -174,19 +170,10 @@ const TasksModule = (() => {
         return `
         <div class="tags-manage-wrap">
             <div class="tags-manage-title">Теги</div>
-            <div id="tags-manage-list">
+            <div id="tags-manage-list" class="tags-manage-pills">
                 ${tags.map(tag => `
-                <div class="tag-manage-item" data-tag-id="${tag.id}">
-                    <span class="tag-pill ${App.tagColorClass(tag.id)} tag-manage-name">${escapeHtml(tag.title)}</span>
-                    <div class="tag-manage-actions">
-                        <button class="tx-action-btn rename-tag" data-tag-id="${tag.id}" aria-label="Переименовать">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                        <button class="tx-action-btn delete delete-tag" data-tag-id="${tag.id}" aria-label="Удалить">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                        </button>
-                    </div>
-                </div>`).join('')}
+                <span class="tag-pill ${App.tagColorClass(tag.id)} tag-manage-pill" data-tag-id="${tag.id}">${escapeHtml(tag.title)}</span>
+                `).join('')}
             </div>
         </div>`;
     }
@@ -196,12 +183,19 @@ const TasksModule = (() => {
         container.querySelector('#filters-bar').addEventListener('click', (e) => {
             const chip = e.target.closest('.filter-chip');
             if (!chip) return;
-            if (chip.dataset.filterStatus) {
-                filterStatus = chip.dataset.filterStatus;
-            } else if (chip.dataset.filterWeather) {
-                filterWeather = filterWeather === chip.dataset.filterWeather ? 'all' : chip.dataset.filterWeather;
-            } else if (chip.dataset.filterTag) {
-                filterTag = filterTag === chip.dataset.filterTag ? 'all' : chip.dataset.filterTag;
+            if ('filterStatus' in chip.dataset) {
+                const val = chip.dataset.filterStatus;
+                if (val === 'all') filterStatuses.clear();
+                else if (filterStatuses.has(val)) filterStatuses.delete(val);
+                else filterStatuses.add(val);
+            } else if ('filterWeather' in chip.dataset) {
+                const val = chip.dataset.filterWeather;
+                if (filterWeathers.has(val)) filterWeathers.delete(val);
+                else filterWeathers.add(val);
+            } else if ('filterTag' in chip.dataset) {
+                const val = chip.dataset.filterTag;
+                if (filterTagIds.has(val)) filterTagIds.delete(val);
+                else filterTagIds.add(val);
             }
             render();
         });
@@ -238,51 +232,33 @@ const TasksModule = (() => {
             }
         });
 
-        // Tags management
+        // Tags management — click pill to edit
         const tagsManage = container.querySelector('#tags-manage-list');
         if (tagsManage) {
-            tagsManage.addEventListener('click', async (e) => {
-                const renameBtn = e.target.closest('.rename-tag');
-                const deleteBtn = e.target.closest('.delete-tag');
-                if (renameBtn) {
-                    const tag = tags.find(t => t.id === renameBtn.dataset.tagId);
-                    if (tag) openRenameTag(tag);
-                } else if (deleteBtn) {
-                    const tagId = deleteBtn.dataset.tagId;
-                    const tag = tags.find(t => t.id === tagId);
-                    const usedInTasks = tasks.filter(t => t.tags.includes(tagId));
-                    const msg = usedInTasks.length > 0
-                        ? `Тег "${tag?.title}" используется в ${usedInTasks.length} задачах. Удалить всё равно?`
-                        : `Удалить тег "${tag?.title}"?`;
-                    App.showConfirmDialog(msg, async () => {
-                        try {
-                            await App.withLoading(() => Sheets.deleteTag(tagId));
-                            tags = tags.filter(t => t.id !== tagId);
-                            render();
-                            App.showToast('Тег удалён');
-                        } catch (err) {
-                            App.handleError(err, 'Удаление тега');
-                        }
-                    });
-                }
+            tagsManage.addEventListener('click', (e) => {
+                const pill = e.target.closest('.tag-manage-pill');
+                if (!pill) return;
+                const tag = tags.find(t => t.id === pill.dataset.tagId);
+                if (tag) openEditTag(tag);
             });
         }
     }
 
-    function openRenameTag(tag) {
+    function openEditTag(tag) {
         const html = `
         <div class="bs-header">
             <button class="icon-btn" id="bs-close-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <span class="bs-title">Переименовать тег</span>
+            <span class="bs-title">Редактировать тег</span>
             <div style="width:40px"></div>
         </div>
         <div class="form-group">
             <label class="form-label">Название тега</label>
             <input type="text" class="form-control" id="rename-tag-input" value="${escapeHtml(tag.title)}">
         </div>
-        <button class="btn btn-primary" id="rename-tag-save">Сохранить</button>`;
+        <button class="btn btn-primary" id="rename-tag-save" style="margin-bottom:10px">Сохранить</button>
+        <button class="btn btn-danger" id="tag-delete-btn">Удалить тег</button>`;
 
         const content = App.showBottomSheet(html);
         content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
@@ -301,6 +277,26 @@ const TasksModule = (() => {
             } catch (err) {
                 App.handleError(err, 'Переименование');
             }
+        });
+
+        content.querySelector('#tag-delete-btn').addEventListener('click', () => {
+            const usedInTasks = tasks.filter(t => t.tags.includes(tag.id));
+            const msg = usedInTasks.length > 0
+                ? `Тег "${tag.title}" используется в ${usedInTasks.length} задачах. Удалить всё равно?`
+                : `Удалить тег "${tag.title}"?`;
+            App.hideBottomSheet();
+            setTimeout(() => {
+                App.showConfirmDialog(msg, async () => {
+                    try {
+                        await App.withLoading(() => Sheets.deleteTag(tag.id));
+                        tags = tags.filter(t => t.id !== tag.id);
+                        render();
+                        App.showToast('Тег удалён');
+                    } catch (err) {
+                        App.handleError(err, 'Удаление тега');
+                    }
+                });
+            }, 320);
         });
     }
 

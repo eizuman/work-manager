@@ -1215,15 +1215,36 @@ select.form-control {
 
 .filters-bar {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     padding: 12px 16px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     border-bottom: 1px solid var(--border);
 }
 
-.filters-bar::-webkit-scrollbar { display: none; }
+.filters-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.filters-row-status {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.filters-row-weather {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.filters-tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
 
 .filter-chip {
     flex-shrink: 0;
@@ -1483,25 +1504,18 @@ select.form-control {
     margin-bottom: 12px;
 }
 
-.tag-manage-item {
+.tags-manage-pills {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
 }
 
-.tag-manage-item:last-child { border-bottom: none; }
-
-.tag-manage-name {
-    flex: 1;
-    font-size: 14px;
+.tag-manage-pill {
+    cursor: pointer;
+    transition: opacity var(--transition);
 }
 
-.tag-manage-actions {
-    display: flex;
-    gap: 4px;
-}
+.tag-manage-pill:hover { opacity: 0.75; }
 
 /* ===== MODULE: PURCHASES ===== */
 .purchases-wrap {
@@ -2152,7 +2166,8 @@ canvas {
         color: var(--text-primary);
     }
 
-    .filters-bar { padding: 12px 24px; border-bottom: 1px solid var(--border); }
+    .filters-bar { padding: 10px 24px; }
+    .filters-row-status { flex-wrap: nowrap; }
 
     .task-list { padding: 12px 24px; }
 
