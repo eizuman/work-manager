@@ -1104,8 +1104,23 @@ select.form-control {
     white-space: nowrap;
 }
 
-.tx-amount.positive { color: var(--orange); }
-.tx-amount.negative { color: var(--green-medium); }
+/* work = debt (neutral), pay = money sent (green) */
+.tx-amount.tx-work { color: var(--text-primary); }
+.tx-amount.tx-pay  { color: var(--green-medium); }
+
+/* Dot indicator — works on all screen sizes */
+.tx-type-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+.tx-type-dot.work    { background: var(--text-muted); }   /* grey — factual debt */
+.tx-type-dot.advance { background: var(--orange); }       /* orange — partial payment */
+.tx-type-dot.payment { background: var(--green-medium); } /* green — settled */
 
 .tx-actions {
     display: flex;
@@ -2063,19 +2078,7 @@ canvas {
     .tx-amount { text-align: right; padding-right: 8px; }
     .tx-actions { justify-content: flex-end; }
 
-    /* Dot indicator */
-    .tx-type-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
-        flex-shrink: 0;
-    }
-    .tx-type-dot.work { background: var(--green-medium); }
-    .tx-type-dot.advance, .tx-type-dot.payment { background: var(--green-medium); }
-
-    /* ===== TASKS DESKTOP ===== */
+/* ===== TASKS DESKTOP ===== */
     .tasks-wrap { padding: 0; }
 
     .tasks-desktop-header {

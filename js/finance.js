@@ -127,16 +127,15 @@ const FinanceModule = (() => {
 
     function renderTxItem(e) {
         const isWork = e.type === 'work';
-        const sign = isWork ? '+' : '-';
-        const cls = isWork ? 'positive' : 'negative';
-        const dotCls = isWork ? 'work' : e.type;
-        const label = e.description || TYPE_LABELS[e.type] || e.type;
+        const sign = isWork ? '−' : '+';
+        const cls = isWork ? 'tx-work' : 'tx-pay';
+        const label = isWork ? (TYPE_LABELS.work || 'Работа') : (e.description || TYPE_LABELS[e.type] || e.type);
         return `
         <div class="tx-item" data-id="${e.id}">
             <div class="tx-info">
                 <div class="tx-date">${App.formatDate(e.date)}</div>
                 <div class="tx-desc">
-                    <span class="tx-type-dot ${dotCls}"></span>${escapeHtml(label)}
+                    <span class="tx-type-dot ${e.type}"></span>${escapeHtml(label)}
                 </div>
             </div>
             <div class="tx-amount ${cls}">${sign}${App.formatAmount(e.amount)}</div>
