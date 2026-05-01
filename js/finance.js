@@ -30,7 +30,7 @@ const FinanceModule = (() => {
     }
 
     function getBalance() {
-        return entries.reduce((bal, e) => bal + (e.type === 'work' ? e.amount : -e.amount), 0);
+        return entries.reduce((bal, e) => bal + (e.type === 'work' ? -e.amount : e.amount), 0);
     }
 
     function getFilteredEntries() {
@@ -78,7 +78,7 @@ const FinanceModule = (() => {
         const filtered = getFilteredEntries();
         const stats = getTotalStats(filtered);
 
-        const balanceStatus = balance > 0 ? 'debt' : balance < 0 ? 'credit' : 'zero';
+        const balanceStatus = balance > 0 ? 'credit' : balance < 0 ? 'debt' : 'zero';
         const balanceText = balance === 0
             ? '0 ₽'
             : (balance > 0 ? '+' : '−') + App.formatAmount(Math.abs(balance));

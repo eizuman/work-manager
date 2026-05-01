@@ -127,18 +127,16 @@ const TasksModule = (() => {
         <div class="tasks-wrap">
             <div class="tasks-desktop-header desktop-only">
                 <div class="tasks-desktop-title">Мои Задачи</div>
-                <div style="display:flex;align-items:center;gap:10px">
-                    <button class="btn btn-outline" id="tags-manage-btn-desktop" style="padding:6px 12px;font-size:13px">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                        Теги
-                    </button>
-                    <button class="fab desktop-add-task-btn" id="add-task-btn-desktop" aria-label="Новая задача">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        Новая задача
-                    </button>
-                </div>
+                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="padding:6px 12px;font-size:13px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    Теги
+                </button>
             </div>
             ${filterBarHtml}
+            <button class="btn btn-outline desktop-only" id="add-task-btn-desktop" style="width:auto;padding:8px 16px;font-size:14px;margin-bottom:12px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Новая задача
+            </button>
             <div class="task-list" id="task-list">
                 ${taskItemsHtml}
             </div>
