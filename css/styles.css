@@ -763,6 +763,202 @@ select.form-control {
     padding: 24px 0;
 }
 
+/* Calendar plan dot */
+.cal-day-dot.plan {
+    background: var(--text-muted);
+}
+
+/* Calendar day content (hidden on mobile, shown on desktop) */
+.cal-day-content {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: 100%;
+    padding-top: 2px;
+    overflow: hidden;
+}
+
+.cal-hours-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    background: var(--green-medium);
+    border-radius: 4px;
+    padding: 2px 5px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.cal-plan-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--border);
+    border-radius: 4px;
+    padding: 2px 5px;
+    line-height: 1.2;
+    letter-spacing: 0.5px;
+}
+
+.cal-day-task-progress {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.cal-day-desc-text {
+    display: none;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Checklist in calendar edit form */
+.cal-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.checklist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checklist-cb {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border-dark);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.checklist-cb.checked {
+    background: var(--green-medium);
+    border-color: var(--green-medium);
+}
+
+.checklist-input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 15px;
+    transition: border-color var(--transition);
+}
+
+.checklist-input:focus {
+    border-color: var(--green-medium);
+}
+
+.checklist-del {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border-radius: var(--radius-xs);
+    transition: color var(--transition);
+}
+
+.checklist-del:active { color: var(--red-medium); }
+
+.add-checklist-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--green-medium);
+    font-weight: 600;
+    padding: 6px 0;
+    transition: opacity var(--transition);
+}
+
+.add-checklist-btn:active { opacity: 0.6; }
+
+/* Calendar day detail tasks */
+.cal-detail-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.cal-detail-task {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cal-detail-cb {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--border-dark);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), border-color var(--transition);
+    cursor: pointer;
+}
+
+.cal-detail-cb.checked {
+    background: var(--green-medium);
+    border-color: var(--green-medium);
+}
+
+.cal-detail-task-text {
+    font-size: 15px;
+    color: var(--text-primary);
+    flex: 1;
+    line-height: 1.35;
+}
+
+.cal-detail-task-text.checked {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.cal-detail-plan-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.8px;
+    background: var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-bottom: 6px;
+}
+
+.cal-detail-note {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
 /* ===== MODULE: FINANCE ===== */
 .finance-wrap {
     padding: 16px;
@@ -1795,6 +1991,7 @@ canvas {
     /* Show content, hide dot */
     .cal-day-dot { display: none; }
     .cal-day-content { display: flex; }
+    .cal-day-desc-text { display: block; }
 
     .cal-day.other-month { background: #E8E3D3; }
 

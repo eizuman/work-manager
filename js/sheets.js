@@ -195,11 +195,23 @@ async function saveWorkLog(data) {
 
     if (found) {
         await updateRow('work_log', found._rowIndex, _workLogToRow({ ...entry, _rowIndex: found._rowIndex }));
-        // Sync finance entry
-        await _syncWorkFinance(entry, found.amount);
+        if (entry.hours > 0) {
+            await _syncWorkFinance(entry, found.amount);
+        } else if (found.hours > 0) {
+            // Was a done day, now a plan — remove its finance entry
+            const finRows = await getFinanceEntries(true);
+            const finEntry = finRows.find(f => f.type === 'work' && f.description === entry.date);
+            if (finEntry) {
+                await deleteRow('finance', finEntry._rowIndex);
+                invalidateCache('finance');
+                await _recalcAllBalances();
+            }
+        }
     } else {
         await appendRow('work_log', _workLogToRow(entry));
-        await _syncWorkFinance(entry, 0);
+        if (entry.hours > 0) {
+            await _syncWorkFinance(entry, 0);
+        }
     }
     return entry;
 }
@@ -209,11 +221,13 @@ async function deleteWorkLog(id) {
     const found = rows.find(r => r.id === id);
     if (!found) return;
     await deleteRow('work_log', found._rowIndex);
-    // Remove associated finance entry
-    const finRows = await getFinanceEntries();
-    const finEntry = finRows.find(f => f.type === 'work' && f.description === found.date);
-    if (finEntry) await deleteRow('finance', finEntry._rowIndex);
-    invalidateCache('finance');
+    // Remove associated finance entry only if it was a done day
+    if (found.hours > 0) {
+        const finRows = await getFinanceEntries();
+        const finEntry = finRows.find(f => f.type === 'work' && f.description === found.date);
+        if (finEntry) await deleteRow('finance', finEntry._rowIndex);
+        invalidateCache('finance');
+    }
 }
 
 // ===== finance =====

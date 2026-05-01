@@ -3,10 +3,11 @@
 const CalendarModule = (() => {
     let container = null;
     let currentYear = new Date().getFullYear();
-    let currentMonth = new Date().getMonth(); // 0-based
+    let currentMonth = new Date().getMonth();
     let workLogs = [];
 
     const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const CHECKMARK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
     async function init(el) {
         container = el;
@@ -23,8 +24,8 @@ const CalendarModule = (() => {
         }
     }
 
-    function getWorkLogForDate(dateStr) {
-        return workLogs.find(w => w.date === dateStr);
+    function getWorkLogForDate(ds) {
+        return workLogs.find(w => w.date === ds);
     }
 
     function dateStr(year, month, day) {
@@ -34,66 +35,114 @@ const CalendarModule = (() => {
     function formatHours(h) {
         const hrs = Math.floor(h);
         const mins = Math.round((h - hrs) * 60);
-        return mins > 0 ? `${hrs}ч ${String(mins).padStart(2,'0')}м` : `${hrs}ч 00м`;
+        return mins > 0 ? `${hrs}ч ${String(mins).padStart(2, '0')}м` : `${hrs}ч 00м`;
     }
+
+    // ===== Checklist helpers =====
+
+    function parseItems(desc) {
+        if (!desc || !desc.trim()) return [];
+        return desc.split('|')
+            .map(s => ({
+                checked: s.startsWith('✓'),
+                text: s.startsWith('✓') ? s.slice(1) : s
+            }))
+            .filter(it => it.text.trim());
+    }
+
+    function serializeItems(items) {
+        return items
+            .filter(it => it.text.trim())
+            .map(it => (it.checked ? '✓' : '') + it.text.trim())
+            .join('|');
+    }
+
+    function getFirstTask(desc) {
+        if (!desc) return '';
+        const first = (desc.split('|')[0] || '').trim();
+        return first.startsWith('✓') ? first.slice(1) : first;
+    }
+
+    function getTaskProgress(desc) {
+        if (!desc) return null;
+        const parts = desc.split('|').filter(s => s.trim());
+        if (!parts.length) return null;
+        const done = parts.filter(s => s.startsWith('✓')).length;
+        return { done, total: parts.length };
+    }
+
+    function getDayStatus(entry) {
+        if (!entry) return null;
+        if (!entry.description && !entry.hours) return null;
+        return entry.hours > 0 ? 'done' : 'plan';
+    }
+
+    // ===== Render =====
 
     function render() {
         const today = new Date();
         const todayStr = dateStr(today.getFullYear(), today.getMonth(), today.getDate());
         const firstDay = new Date(currentYear, currentMonth, 1);
         const lastDay = new Date(currentYear, currentMonth + 1, 0);
-
-        // Monday-first: getDay() returns 0=Sun, so we shift
-        const startDow = (firstDay.getDay() + 6) % 7; // 0=Mon
+        const startDow = (firstDay.getDay() + 6) % 7;
         const daysInMonth = lastDay.getDate();
 
         let daysHTML = '';
 
-        // Previous month padding
         const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
         for (let i = startDow - 1; i >= 0; i--) {
             const day = prevMonthLastDay - i;
             const dow = (startDow - i - 1 + 7) % 7;
-            const isWeekend = dow >= 5;
-            daysHTML += `<div class="cal-day other-month${isWeekend ? ' weekend' : ''}">
+            daysHTML += `<div class="cal-day other-month${dow >= 5 ? ' weekend' : ''}">
                 <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
             </div>`;
         }
 
-        // Current month
         for (let day = 1; day <= daysInMonth; day++) {
             const ds = dateStr(currentYear, currentMonth, day);
             const isToday = ds === todayStr;
             const dow = (startDow + day - 1) % 7;
-            const isWeekend = dow >= 5;
             const entry = getWorkLogForDate(ds);
+            const status = getDayStatus(entry);
 
             let classes = 'cal-day';
             if (isToday) classes += ' today';
-            if (isWeekend) classes += ' weekend';
+            if (dow >= 5) classes += ' weekend';
 
-            const dot = entry ? '<div class="cal-day-dot"></div>' : '';
-            const content = entry ? `<div class="cal-day-content">
-                <span class="cal-hours-pill">${formatHours(entry.hours)}</span>
-                ${entry.description ? `<span class="cal-day-desc-text">${escapeHtml(entry.description.slice(0, 60))}</span>` : ''}
-            </div>` : '';
+            let dot = '';
+            let content = '';
+
+            if (entry && status) {
+                const prog = getTaskProgress(entry.description);
+                const firstTask = getFirstTask(entry.description);
+                const progHtml = prog ? `<span class="cal-day-task-progress">${prog.done}/${prog.total}</span>` : '';
+                const descHtml = firstTask ? `<span class="cal-day-desc-text">${escapeHtml(firstTask.slice(0, 50))}</span>` : '';
+
+                if (status === 'done') {
+                    dot = '<div class="cal-day-dot"></div>';
+                    content = `<div class="cal-day-content">
+                        <span class="cal-hours-pill">${formatHours(entry.hours)}</span>
+                        ${progHtml}${descHtml}
+                    </div>`;
+                } else {
+                    dot = '<div class="cal-day-dot plan"></div>';
+                    content = `<div class="cal-day-content plan">
+                        <span class="cal-plan-badge">ПЛАН</span>
+                        ${progHtml}${descHtml}
+                    </div>`;
+                }
+            }
 
             daysHTML += `<div class="${classes}" data-date="${ds}">
-                <div class="cal-day-inner">
-                    <span class="cal-day-num">${day}</span>
-                </div>
-                ${dot}
-                ${content}
+                <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
+                ${dot}${content}
             </div>`;
         }
 
-        // Next month padding
         const totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
-        const endPad = totalCells - startDow - daysInMonth;
-        for (let day = 1; day <= endPad; day++) {
+        for (let day = 1; day <= totalCells - startDow - daysInMonth; day++) {
             const dow = (startDow + daysInMonth + day - 1) % 7;
-            const isWeekend = dow >= 5;
-            daysHTML += `<div class="cal-day other-month${isWeekend ? ' weekend' : ''}">
+            daysHTML += `<div class="cal-day other-month${dow >= 5 ? ' weekend' : ''}">
                 <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
             </div>`;
         }
@@ -108,15 +157,11 @@ const CalendarModule = (() => {
                 <span class="calendar-month-title">${App.formatMonthYear(currentYear, currentMonth)}</span>
                 <div class="calendar-nav-btns">
                     <button class="cal-nav-btn" id="cal-prev" aria-label="Предыдущий месяц">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="15,18 9,12 15,6"/>
-                        </svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
                     </button>
-                    <button class="cal-nav-btn cal-today-btn hidden" id="cal-today" style="display:none">Сегодня</button>
+                    <button class="cal-nav-btn cal-today-btn" id="cal-today" style="display:none">Сегодня</button>
                     <button class="cal-nav-btn" id="cal-next" aria-label="Следующий месяц">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="9,18 15,12 9,6"/>
-                        </svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
                     </button>
                 </div>
             </div>
@@ -146,7 +191,6 @@ const CalendarModule = (() => {
 
         const todayBtn = document.getElementById('cal-today');
         if (todayBtn) {
-            // Show "Сегодня" on desktop
             if (window.innerWidth >= 768) todayBtn.style.display = '';
             todayBtn.addEventListener('click', () => {
                 currentYear = today.getFullYear();
@@ -162,13 +206,95 @@ const CalendarModule = (() => {
         });
     }
 
-    function openDaySheet(dateStr) {
-        const entry = getWorkLogForDate(dateStr);
-        const [y, m, d] = dateStr.split('-').map(Number);
+    // ===== Checklist DOM =====
+
+    function addChecklistRow(cont, item, insertAfter = null) {
+        const row = document.createElement('div');
+        row.className = 'checklist-row';
+
+        const cb = document.createElement('button');
+        cb.type = 'button';
+        cb.className = 'checklist-cb' + (item.checked ? ' checked' : '');
+        if (item.checked) cb.innerHTML = CHECKMARK;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'checklist-input';
+        input.value = item.text;
+        input.placeholder = 'Описание работы...';
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'checklist-del';
+        del.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+        row.append(cb, input, del);
+
+        if (insertAfter) insertAfter.after(row);
+        else cont.appendChild(row);
+
+        cb.addEventListener('click', () => {
+            cb.classList.toggle('checked');
+            cb.innerHTML = cb.classList.contains('checked') ? CHECKMARK : '';
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addChecklistRow(cont, { checked: false, text: '' }, row)
+                    .querySelector('.checklist-input').focus();
+            } else if (e.key === 'Backspace' && input.value === '') {
+                e.preventDefault();
+                if (cont.querySelectorAll('.checklist-row').length > 1) {
+                    const prev = row.previousElementSibling;
+                    row.remove();
+                    if (prev) prev.querySelector('.checklist-input').focus();
+                }
+            }
+        });
+
+        del.addEventListener('click', () => {
+            if (cont.querySelectorAll('.checklist-row').length > 1) {
+                const prev = row.previousElementSibling || row.nextElementSibling;
+                row.remove();
+                if (prev) prev.querySelector('.checklist-input').focus();
+            } else {
+                input.value = '';
+                cb.classList.remove('checked');
+                cb.innerHTML = '';
+            }
+        });
+
+        return row;
+    }
+
+    function collectChecklistItems(cont) {
+        return Array.from(cont.querySelectorAll('.checklist-row')).map(row => ({
+            checked: row.querySelector('.checklist-cb').classList.contains('checked'),
+            text: row.querySelector('.checklist-input').value
+        }));
+    }
+
+    // ===== Day detail sheet =====
+
+    function openDaySheet(ds) {
+        const entry = getWorkLogForDate(ds);
+        const [y, m, d] = ds.split('-').map(Number);
         const dateLabel = `${d} ${App.MONTHS_RU[m - 1]} ${y}`;
 
         let html;
         if (entry) {
+            const status = getDayStatus(entry);
+            const items = parseItems(entry.description);
+
+            const tasksHtml = items.map((item, idx) => `
+                <div class="cal-detail-task">
+                    <button type="button" class="cal-detail-cb${item.checked ? ' checked' : ''}" data-idx="${idx}">
+                        ${item.checked ? CHECKMARK : ''}
+                    </button>
+                    <span class="cal-detail-task-text${item.checked ? ' checked' : ''}">${escapeHtml(item.text)}</span>
+                </div>`).join('');
+
             html = `
             <div class="bs-header">
                 <span class="bs-title">${dateLabel}</span>
@@ -177,9 +303,11 @@ const CalendarModule = (() => {
                 </button>
             </div>
             <div class="cal-detail-card">
-                <div class="cal-detail-time">${entry.hours} ч · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>
-                <div class="cal-detail-desc">${escapeHtml(entry.description || 'Без описания')}</div>
-                ${entry.note ? `<div class="cal-detail-desc" style="margin-top:6px;color:var(--text-muted);font-size:13px;">📝 ${escapeHtml(entry.note)}</div>` : ''}
+                ${status === 'done'
+                    ? `<div class="cal-detail-time">${entry.hours} ч · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>`
+                    : `<div class="cal-detail-plan-label">ПЛАН</div>`}
+                ${tasksHtml ? `<div class="cal-detail-tasks">${tasksHtml}</div>` : ''}
+                ${entry.note ? `<div class="cal-detail-note">📝 ${escapeHtml(entry.note)}</div>` : ''}
             </div>
             <button class="btn btn-outline" id="cal-edit-btn" style="margin-bottom:10px">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -199,39 +327,77 @@ const CalendarModule = (() => {
         }
 
         const content = App.showBottomSheet(html);
-
         content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
 
         if (entry) {
+            // Interactive checkboxes — save on click without opening form
+            content.querySelectorAll('.cal-detail-cb').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    const items = parseItems(entry.description);
+                    items[idx].checked = !items[idx].checked;
+                    const newDesc = serializeItems(items);
+                    const isChecked = items[idx].checked;
+
+                    // Optimistic UI
+                    btn.classList.toggle('checked', isChecked);
+                    btn.innerHTML = isChecked ? CHECKMARK : '';
+                    btn.nextElementSibling.classList.toggle('checked', isChecked);
+
+                    const prevDesc = entry.description;
+                    entry.description = newDesc;
+
+                    try {
+                        const saved = await Sheets.saveWorkLog({
+                            date: ds,
+                            hours: entry.hours,
+                            rate: entry.rate || App.getHourlyRate(),
+                            description: newDesc,
+                            note: entry.note || ''
+                        });
+                        const i = workLogs.findIndex(w => w.date === ds);
+                        if (i >= 0) workLogs[i] = saved;
+                        render();
+                    } catch (err) {
+                        // Revert
+                        entry.description = prevDesc;
+                        btn.classList.toggle('checked', !isChecked);
+                        btn.innerHTML = !isChecked ? CHECKMARK : '';
+                        btn.nextElementSibling.classList.toggle('checked', !isChecked);
+                        App.handleError(err, 'Обновление');
+                    }
+                });
+            });
+
             content.querySelector('#cal-edit-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
-                setTimeout(() => openEditForm(dateStr, entry), 320);
+                setTimeout(() => openEditForm(ds, entry), 320);
             });
+
             content.querySelector('#cal-delete-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
                 setTimeout(() => {
-                    App.showConfirmDialog(
-                        `Удалить запись за ${dateLabel}?`,
-                        async () => {
-                            try {
-                                await App.withLoading(() => Sheets.deleteWorkLog(entry.id));
-                                workLogs = workLogs.filter(w => w.id !== entry.id);
-                                render();
-                                App.showToast('Запись удалена');
-                            } catch (err) {
-                                App.handleError(err, 'Удаление');
-                            }
+                    App.showConfirmDialog(`Удалить запись за ${dateLabel}?`, async () => {
+                        try {
+                            await App.withLoading(() => Sheets.deleteWorkLog(entry.id));
+                            workLogs = workLogs.filter(w => w.id !== entry.id);
+                            render();
+                            App.showToast('Запись удалена');
+                        } catch (err) {
+                            App.handleError(err, 'Удаление');
                         }
-                    );
+                    });
                 }, 320);
             });
         } else {
             content.querySelector('#cal-add-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
-                setTimeout(() => openEditForm(dateStr, null), 320);
+                setTimeout(() => openEditForm(ds, null), 320);
             });
         }
     }
+
+    // ===== Edit form =====
 
     function openEditForm(ds, existingEntry) {
         const [y, m, d] = ds.split('-').map(Number);
@@ -261,55 +427,66 @@ const CalendarModule = (() => {
             <label class="form-label">Отработанные часы / Ставка</label>
             <div style="display:flex;gap:10px">
                 <div class="form-control-with-icon" style="flex:1">
-                    <input type="number" class="form-control" id="cal-hours" value="${existingEntry ? existingEntry.hours : ''}" placeholder="8" min="0" max="24" step="0.5">
+                    <input type="number" class="form-control" id="cal-hours" value="${existingEntry && existingEntry.hours ? existingEntry.hours : ''}" placeholder="0" min="0" max="24" step="0.5">
                     <span class="form-control-icon" style="font-size:13px;font-weight:600;color:var(--text-muted)">ч</span>
                 </div>
                 <div class="form-control-with-icon" style="flex:1">
-                    <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700.00">
+                    <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || App.getHourlyRate()) : App.getHourlyRate()}" placeholder="700.00">
                     <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
                 </div>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="form-label">Описание работ</label>
-            <textarea class="form-control textarea" id="cal-desc" placeholder="Что было сделано...">${existingEntry ? escapeHtml(existingEntry.description) : ''}</textarea>
+            <label class="form-label">Список работ</label>
+            <div class="cal-checklist" id="cal-tasks"></div>
+            <button type="button" class="add-checklist-btn" id="cal-add-task">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Добавить пункт
+            </button>
         </div>
 
         <div class="form-group">
             <label class="form-label">Заметка (личное)</label>
-            <textarea class="form-control textarea" id="cal-note" placeholder="Например: Не забыть отправить отчёт">${existingEntry ? escapeHtml(existingEntry.note) : ''}</textarea>
+            <textarea class="form-control textarea" id="cal-note" placeholder="Например: Не забыть отправить отчёт">${existingEntry ? escapeHtml(existingEntry.note || '') : ''}</textarea>
         </div>
 
         <button class="btn btn-primary" id="cal-save-btn" style="margin-bottom:10px">Сохранить</button>
         ${isEdit ? '<button class="btn btn-danger" id="cal-del-btn">Удалить запись</button>' : ''}`;
 
         const content = App.showBottomSheet(html);
-
         content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
 
+        // Init checklist
+        const tasksContainer = content.querySelector('#cal-tasks');
+        const initialItems = existingEntry ? parseItems(existingEntry.description) : [];
+        if (initialItems.length === 0) initialItems.push({ checked: false, text: '' });
+        initialItems.forEach(item => addChecklistRow(tasksContainer, item));
+
+        content.querySelector('#cal-add-task').addEventListener('click', () => {
+            addChecklistRow(tasksContainer, { checked: false, text: '' })
+                .querySelector('.checklist-input').focus();
+        });
+
         content.querySelector('#cal-save-btn').addEventListener('click', async () => {
-            const hours = parseFloat(content.querySelector('#cal-hours').value);
-            if (!hours || hours <= 0) {
-                App.showToast('Укажите количество часов', 'error');
+            const hours = parseFloat(content.querySelector('#cal-hours').value) || 0;
+            const rate = parseFloat(content.querySelector('#cal-rate').value.replace(',', '.')) || App.getHourlyRate();
+            const items = collectChecklistItems(tasksContainer);
+            const description = serializeItems(items);
+
+            if (!hours && !description.trim()) {
+                App.showToast('Добавьте список работ или укажите часы', 'error');
                 return;
             }
 
             try {
-                const rate = parseFloat(content.querySelector('#cal-rate').value.replace(',', '.')) || App.getHourlyRate();
                 const saved = await App.withLoading(() => Sheets.saveWorkLog({
-                    date: ds,
-                    hours,
-                    rate,
-                    description: content.querySelector('#cal-desc').value.trim(),
+                    date: ds, hours, rate, description,
                     note: content.querySelector('#cal-note').value.trim()
                 }));
-
-                // Update local cache
                 const idx = workLogs.findIndex(w => w.date === ds);
                 if (idx >= 0) workLogs[idx] = saved;
                 else workLogs.push(saved);
-
                 App.hideBottomSheet();
                 render();
                 App.showToast('Сохранено');
@@ -322,26 +499,23 @@ const CalendarModule = (() => {
             content.querySelector('#cal-del-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
                 setTimeout(() => {
-                    App.showConfirmDialog(
-                        `Удалить запись за ${dateLabel}?`,
-                        async () => {
-                            try {
-                                await App.withLoading(() => Sheets.deleteWorkLog(existingEntry.id));
-                                workLogs = workLogs.filter(w => w.id !== existingEntry.id);
-                                render();
-                                App.showToast('Запись удалена');
-                            } catch (err) {
-                                App.handleError(err, 'Удаление');
-                            }
+                    App.showConfirmDialog(`Удалить запись за ${dateLabel}?`, async () => {
+                        try {
+                            await App.withLoading(() => Sheets.deleteWorkLog(existingEntry.id));
+                            workLogs = workLogs.filter(w => w.id !== existingEntry.id);
+                            render();
+                            App.showToast('Запись удалена');
+                        } catch (err) {
+                            App.handleError(err, 'Удаление');
                         }
-                    );
+                    });
                 }, 320);
             });
         }
     }
 
     function escapeHtml(str) {
-        return String(str)
+        return String(str || '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
