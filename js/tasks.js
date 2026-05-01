@@ -85,7 +85,8 @@ const TasksModule = (() => {
         const tagChipsHtml = uniqueTagIds.map(tid => {
             const tag = getTagById(tid);
             if (!tag) return '';
-            return `<button class="filter-chip${filterTagIds.has(tid) ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
+            const colorCls = App.tagColorClass(tid);
+            return `<button class="filter-chip-tag ${colorCls}${filterTagIds.has(tid) ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
         }).join('');
 
         // Task list

@@ -1265,6 +1265,22 @@ select.form-control {
     border-color: var(--green-dark);
 }
 
+.filter-chip-tag {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1.5px solid transparent;
+    transition: filter var(--transition), border-color var(--transition);
+}
+
+.filter-chip-tag.active {
+    border-color: currentColor;
+    filter: brightness(0.82);
+}
+
 .filter-btn {
     flex-shrink: 0;
     display: flex;
