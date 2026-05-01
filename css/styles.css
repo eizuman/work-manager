@@ -785,51 +785,55 @@ select.form-control {
     display: none;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    gap: 2px;
     width: 100%;
-    padding-top: 2px;
     overflow: hidden;
 }
 
-.cal-hours-pill {
-    display: inline-flex;
+.cal-day-meta {
+    display: flex;
     align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.cal-hours-pill {
+    display: inline-block;
     font-size: 11px;
     font-weight: 700;
-    color: white;
-    background: var(--green-medium);
-    border-radius: 4px;
-    padding: 2px 5px;
-    line-height: 1.2;
+    color: var(--green-dark);
+    background: var(--green-pale);
+    border-radius: 10px;
+    padding: 1px 6px;
     white-space: nowrap;
 }
 
 .cal-plan-badge {
-    display: inline-flex;
-    align-items: center;
+    display: inline-block;
     font-size: 10px;
     font-weight: 700;
     color: var(--text-muted);
     background: var(--border);
     border-radius: 4px;
-    padding: 2px 5px;
-    line-height: 1.2;
+    padding: 1px 5px;
     letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .cal-day-task-progress {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .cal-day-desc-text {
     display: none;
     font-size: 11px;
     color: var(--text-secondary);
-    white-space: nowrap;
+    line-height: 1.3;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    word-break: break-word;
+    width: 100%;
 }
 
 /* Checklist in calendar edit form */
@@ -1718,28 +1722,6 @@ canvas {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 2px; }
 
-/* ===== Calendar desktop content ===== */
-.cal-day-content { display: none; flex-direction: column; gap: 3px; padding: 4px 0 0; }
-.cal-hours-pill {
-    display: inline-block;
-    background: var(--green-pale);
-    color: var(--green-dark);
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 10px;
-    white-space: nowrap;
-    width: fit-content;
-}
-.cal-day-desc-text {
-    font-size: 11px;
-    color: var(--text-secondary);
-    line-height: 1.3;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
 
 /* ===== Task status badge ===== */
 .task-status-badge {
@@ -1989,7 +1971,11 @@ canvas {
     /* Show content, hide dot */
     .cal-day-dot { display: none; }
     .cal-day-content { display: flex; }
-    .cal-day-desc-text { display: block; }
+    .cal-day-desc-text {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+    }
 
     .cal-day.other-month { background: #E8E3D3; }
 

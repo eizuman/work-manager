@@ -57,10 +57,12 @@ const CalendarModule = (() => {
             .join('|');
     }
 
-    function getFirstTask(desc) {
-        if (!desc) return '';
-        const first = (desc.split('|')[0] || '').trim();
-        return first.startsWith('✓') ? first.slice(1) : first;
+    function getAllTasksText(desc) {
+        if (!desc || !desc.trim()) return '';
+        return desc.split('|')
+            .map(s => s.startsWith('✓') ? s.slice(1).trim() : s.trim())
+            .filter(Boolean)
+            .join(', ');
     }
 
     function getTaskProgress(desc) {
@@ -114,21 +116,21 @@ const CalendarModule = (() => {
 
             if (entry && status) {
                 const prog = getTaskProgress(entry.description);
-                const firstTask = getFirstTask(entry.description);
+                const allTasks = getAllTasksText(entry.description);
                 const progHtml = prog ? `<span class="cal-day-task-progress">${prog.done}/${prog.total}</span>` : '';
-                const descHtml = firstTask ? `<span class="cal-day-desc-text">${escapeHtml(firstTask.slice(0, 50))}</span>` : '';
+                const descHtml = allTasks ? `<span class="cal-day-desc-text">${escapeHtml(allTasks)}</span>` : '';
 
                 if (status === 'done') {
                     dot = '<div class="cal-day-dot"></div>';
                     content = `<div class="cal-day-content">
-                        <span class="cal-hours-pill">${formatHours(entry.hours)}</span>
-                        ${progHtml}${descHtml}
+                        <div class="cal-day-meta"><span class="cal-hours-pill">${formatHours(entry.hours)}</span>${progHtml}</div>
+                        ${descHtml}
                     </div>`;
                 } else {
                     dot = '<div class="cal-day-dot plan"></div>';
                     content = `<div class="cal-day-content plan">
-                        <span class="cal-plan-badge">ПЛАН</span>
-                        ${progHtml}${descHtml}
+                        <div class="cal-day-meta"><span class="cal-plan-badge">ПЛАН</span>${progHtml}</div>
+                        ${descHtml}
                     </div>`;
                 }
             }
