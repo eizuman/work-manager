@@ -96,7 +96,7 @@ const CalendarModule = (() => {
             const day = prevMonthLastDay - i;
             const dow = (startDow - i - 1 + 7) % 7;
             daysHTML += `<div class="cal-day other-month${dow >= 5 ? ' weekend' : ''}">
-                <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
+                <div class="cal-day-top"><div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
             </div>`;
         }
 
@@ -135,11 +135,13 @@ const CalendarModule = (() => {
                 }
             }
 
-            const noteDot = (entry && entry.note) ? '<div class="cal-day-note-dot"></div>' : '';
+            const noteIcon = (entry && entry.note)
+                ? `<span class="cal-day-note-icon" title="${escapeHtml(entry.note)}">i</span>`
+                : '';
 
             daysHTML += `<div class="${classes}" data-date="${ds}">
-                <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
-                ${noteDot}${dot}${content}
+                <div class="cal-day-top">${noteIcon}<div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
+                ${dot}${content}
             </div>`;
         }
 
@@ -147,7 +149,7 @@ const CalendarModule = (() => {
         for (let day = 1; day <= totalCells - startDow - daysInMonth; day++) {
             const dow = (startDow + daysInMonth + day - 1) % 7;
             daysHTML += `<div class="cal-day other-month${dow >= 5 ? ' weekend' : ''}">
-                <div class="cal-day-inner"><span class="cal-day-num">${day}</span></div>
+                <div class="cal-day-top"><div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
             </div>`;
         }
 

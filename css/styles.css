@@ -768,16 +768,29 @@ select.form-control {
     background: var(--text-muted);
 }
 
-/* Note indicator — small dot at top-right of day cell */
-.cal-day-note-dot {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 6px;
-    height: 6px;
+/* Note indicator — ⓘ icon next to date number */
+.cal-day-top {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.cal-day-note-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--orange);
-    pointer-events: none;
+    border: 1.5px solid var(--border-dark);
+    color: var(--text-secondary);
+    font-size: 9px;
+    font-weight: 700;
+    font-style: normal;
+    line-height: 1;
+    cursor: default;
+    flex-shrink: 0;
+    user-select: none;
 }
 
 /* Calendar day content (hidden on mobile, shown on desktop) */
@@ -1955,10 +1968,9 @@ canvas {
         cursor: pointer;
     }
 
-    .cal-day-inner {
+    .cal-day-top {
         align-self: flex-end;
         margin-left: auto;
-        margin-bottom: 0;
     }
 
     .cal-day-num { font-size: 13px; }
