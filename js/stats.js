@@ -3,6 +3,9 @@
 const StatsModule = (() => {
     let container = null;
     let workLogs = [];
+    let filterMode = 'all'; // 'all' | 'year' | 'month' | 'custom'
+    let filterFrom = '';
+    let filterTo = '';
 
     async function init(el) {
         container = el;
@@ -19,13 +22,29 @@ const StatsModule = (() => {
         }
     }
 
-    function getCurrentMonthStats() {
+    function getFilteredLogs() {
+        if (filterMode === 'all') return workLogs;
         const now = new Date();
-        const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `${y}-${m}`;
-        const monthLogs = workLogs.filter(w => w.date.startsWith(prefix));
-        const totalHours = monthLogs.reduce((s, w) => s + w.hours, 0);
-        const daysWorked = monthLogs.length;
+        let from = '', to = '';
+        if (filterMode === 'month') {
+            const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+            from = `${y}-${m}-01`; to = `${y}-${m}-31`;
+        } else if (filterMode === 'year') {
+            from = `${now.getFullYear()}-01-01`; to = `${now.getFullYear()}-12-31`;
+        } else if (filterMode === 'custom') {
+            from = filterFrom; to = filterTo;
+        }
+        return workLogs.filter(l => {
+            if (from && l.date < from) return false;
+            if (to && l.date > to) return false;
+            return true;
+        });
+    }
+
+    function getStats(logs) {
+        const activeLogs = logs.filter(l => l.hours > 0);
+        const totalHours = activeLogs.reduce((s, w) => s + w.hours, 0);
+        const daysWorked = activeLogs.length;
         const avgHours = daysWorked > 0 ? totalHours / daysWorked : 0;
         return { totalHours, avgHours, daysWorked };
     }
@@ -79,19 +98,31 @@ const StatsModule = (() => {
     }
 
     function render() {
-        const monthStats = getCurrentMonthStats();
+        const filteredLogs = getFilteredLogs();
+        const stats = getStats(filteredLogs);
         const weeks = getWeeklyHours();
         const bestWeek = getBestWeek(weeks);
 
-        const now = new Date();
-        const monthName = App.MONTHS_FULL_RU[now.getMonth()] + ' ' + now.getFullYear();
+        const isCustomDatesVisible = filterMode === 'custom';
 
         container.innerHTML = `
         <div class="stats-wrap">
             <div class="stats-header">
                 <div>
-                    <div class="stats-title">Сводка за Месяц</div>
-                    <div class="stats-period">${monthName}</div>
+                    <div class="stats-title">Статистика</div>
+                </div>
+            </div>
+
+            <div class="finance-filter-bar" id="stats-filter-bar">
+                <button class="fin-filter-btn${filterMode === 'all' ? ' active' : ''}" data-filter="all">Всё время</button>
+                <button class="fin-filter-btn${filterMode === 'year' ? ' active' : ''}" data-filter="year">Год</button>
+                <button class="fin-filter-btn${filterMode === 'month' ? ' active' : ''}" data-filter="month">Месяц</button>
+                <button class="fin-filter-btn${filterMode === 'custom' ? ' active' : ''}" data-filter="custom">Период</button>
+                <div class="finance-filter-dates${isCustomDatesVisible ? '' : ' hidden'}" id="stats-custom-dates">
+                    <span class="fin-filter-sep">с</span>
+                    <input type="date" class="fin-date-input" id="stats-date-from" value="${filterFrom}">
+                    <span class="fin-filter-sep">по</span>
+                    <input type="date" class="fin-date-input" id="stats-date-to" value="${filterTo}">
                 </div>
             </div>
 
@@ -100,7 +131,7 @@ const StatsModule = (() => {
                 <div class="stats-card">
                     <div class="stats-sub" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;font-weight:600">В среднем часов / день</div>
                     <div style="margin-top:4px">
-                        <span class="stats-big-num">${monthStats.avgHours.toFixed(1)}</span>
+                        <span class="stats-big-num">${stats.avgHours.toFixed(1)}</span>
                         <span class="stats-big-unit">ч.</span>
                     </div>
                 </div>
@@ -115,10 +146,10 @@ const StatsModule = (() => {
                 <div class="stats-card">
                     <div class="stats-sub" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;font-weight:600">Итого часов</div>
                     <div style="margin-top:4px">
-                        <span class="stats-big-num">${monthStats.totalHours.toFixed(0)}</span>
+                        <span class="stats-big-num">${stats.totalHours.toFixed(0)}</span>
                         <span class="stats-big-unit">ч.</span>
                     </div>
-                    <div class="stats-sub" style="margin-top:4px">${monthStats.daysWorked} рабочих дней</div>
+                    <div class="stats-sub" style="margin-top:4px">${stats.daysWorked} рабочих дней</div>
                 </div>
             </div>
 
@@ -141,6 +172,19 @@ const StatsModule = (() => {
                 </div>
             </div>
         </div>`;
+
+        // Filter bar events
+        container.querySelector('#stats-filter-bar').addEventListener('click', (e) => {
+            const btn = e.target.closest('.fin-filter-btn[data-filter]');
+            if (!btn) return;
+            filterMode = btn.dataset.filter;
+            render();
+        });
+        const datesEl = container.querySelector('#stats-custom-dates');
+        if (datesEl) {
+            container.querySelector('#stats-date-from').addEventListener('change', (e) => { filterFrom = e.target.value; render(); });
+            container.querySelector('#stats-date-to').addEventListener('change', (e) => { filterTo = e.target.value; render(); });
+        }
 
         // Draw charts after DOM is ready
         requestAnimationFrame(() => {

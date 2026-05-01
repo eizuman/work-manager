@@ -4,6 +4,7 @@ const TasksModule = (() => {
     let container = null;
     let tasks = [];
     let tags = [];
+    let purchases = [];
 
     // Active filters (Sets for multi-select; empty = show all)
     let filterStatuses = new Set();
@@ -33,7 +34,7 @@ const TasksModule = (() => {
 
     async function loadData() {
         try {
-            [tasks, tags] = await App.withLoading(() => Promise.all([Sheets.getTasks(), Sheets.getTags()]));
+            [tasks, tags, purchases] = await App.withLoading(() => Promise.all([Sheets.getTasks(), Sheets.getTags(), Sheets.getPurchases()]));
         } catch (err) {
             App.handleError(err, 'Загрузка задач');
             tasks = []; tags = [];
@@ -182,7 +183,7 @@ const TasksModule = (() => {
     function bindEvents() {
         // Filters
         container.querySelector('#filters-bar').addEventListener('click', (e) => {
-            const chip = e.target.closest('.filter-chip');
+            const chip = e.target.closest('.filter-chip, .filter-chip-tag');
             if (!chip) return;
             if ('filterStatus' in chip.dataset) {
                 const val = chip.dataset.filterStatus;
@@ -308,6 +309,7 @@ const TasksModule = (() => {
         let selectedWeather = isEdit ? (existing.weather || 'any') : 'any';
         let selectedStatus = isEdit ? (existing.status || 'new') : 'new';
         let selectedTagIds = isEdit ? [...(existing.tags || [])] : [];
+        const linkedPurchases = isEdit ? purchases.filter(p => p.task_id === existing.id) : [];
 
         const html = `
         <div class="bs-header">
@@ -368,6 +370,21 @@ const TasksModule = (() => {
                     return `<span class="selected-tag ${cls}" data-tid="${tid}">${escapeHtml(tag.title)}<button class="selected-tag-remove" data-remove-tag="${tid}">×</button></span>`;
                 }).join('')}
             </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">К покупке</label>
+            ${linkedPurchases.length > 0 ? `<div class="task-purchases-linked">${linkedPurchases.map(p => `
+                <div class="task-purchase-linked-item${p.status === 'bought' ? ' bought' : ''}">
+                    <span class="task-purchase-linked-check">${p.status === 'bought' ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}</span>
+                    <span class="task-purchase-linked-name">${escapeHtml(p.title)}</span>
+                    ${p.price > 0 ? `<span class="task-purchase-linked-price">${App.formatAmount(p.price)}</span>` : ''}
+                </div>`).join('')}</div>` : ''}
+            <div id="task-new-purchases"></div>
+            <button type="button" class="add-checklist-btn" id="add-task-purchase-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Добавить позицию
+            </button>
         </div>
 
         <button class="btn btn-primary" id="task-save-btn" style="margin-bottom:10px">
@@ -489,6 +506,22 @@ const TasksModule = (() => {
             btn.closest('.selected-tag').remove();
         });
 
+        // New purchase rows
+        const newPurchasesEl = content.querySelector('#task-new-purchases');
+        content.querySelector('#add-task-purchase-btn').addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'task-purchase-new-row';
+            row.innerHTML = `
+                <input type="text" class="form-control tp-title" placeholder="Что купить">
+                <input type="text" inputmode="decimal" class="form-control tp-price" placeholder="₽" style="width:80px;flex-shrink:0">
+                <button type="button" class="icon-btn tp-remove" style="flex-shrink:0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>`;
+            row.querySelector('.tp-remove').addEventListener('click', () => row.remove());
+            newPurchasesEl.appendChild(row);
+            row.querySelector('.tp-title').focus();
+        });
+
         // Save
         content.querySelector('#task-save-btn').addEventListener('click', async () => {
             const title = content.querySelector('#task-title').value.trim();
@@ -504,16 +537,29 @@ const TasksModule = (() => {
             };
 
             try {
+                let taskId;
                 if (isEdit) {
                     const updated = await App.withLoading(() => Sheets.updateTask(existing.id, data));
                     const idx = tasks.findIndex(t => t.id === existing.id);
                     if (idx >= 0) tasks[idx] = { ...tasks[idx], ...updated };
+                    taskId = existing.id;
                     App.showToast('Сохранено');
                 } else {
                     const newTask = await App.withLoading(() => Sheets.addTask(data));
                     tasks.push(newTask);
+                    taskId = newTask.id;
                     App.showToast('Задача создана');
                 }
+
+                // Save any new purchase rows
+                const newRows = [...content.querySelectorAll('.task-purchase-new-row')];
+                const newPurchases = newRows
+                    .map(r => ({ title: r.querySelector('.tp-title').value.trim(), price: parseFloat(r.querySelector('.tp-price').value) || 0 }))
+                    .filter(p => p.title);
+                if (newPurchases.length > 0) {
+                    await Promise.all(newPurchases.map(p => Sheets.addPurchase({ ...p, task_id: taskId, status: 'pending' })));
+                }
+
                 App.hideBottomSheet();
                 render();
             } catch (err) {

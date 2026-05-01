@@ -116,6 +116,7 @@ const PurchasesModule = (() => {
 
     function bindEvents() {
         container.querySelector('#add-purchase-btn').addEventListener('click', () => openPurchaseForm(null));
+        container.querySelector('#add-purchase-btn-desktop')?.addEventListener('click', () => openPurchaseForm(null));
 
         container.addEventListener('click', (e) => {
             const toggleBtn = e.target.closest('[data-toggle-id]');
