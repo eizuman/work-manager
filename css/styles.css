@@ -2299,7 +2299,9 @@ canvas {
         justify-content: space-between;
         padding: 20px 24px 0;
         margin-bottom: 12px;
+        gap: 16px;
     }
+    .tasks-desktop-header .btn { width: auto; flex-shrink: 0; }
 
     .tasks-desktop-title {
         font-size: 22px;

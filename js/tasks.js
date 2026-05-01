@@ -126,8 +126,8 @@ const TasksModule = (() => {
         container.innerHTML = `
         <div class="tasks-wrap">
             <div class="tasks-desktop-header desktop-only">
-                <div class="tasks-desktop-title">Мои Задачи</div>
-                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="padding:6px 12px;font-size:13px">
+                <div class="tasks-desktop-title" style="white-space:nowrap">Мои Задачи</div>
+                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="width:auto;flex-shrink:0;padding:6px 12px;font-size:13px">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     Теги
                 </button>
