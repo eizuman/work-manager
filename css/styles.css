@@ -1176,7 +1176,7 @@ select.form-control {
     vertical-align: middle;
 }
 .tx-type-dot.work    { background: var(--text-muted); }   /* grey — factual debt */
-.tx-type-dot.advance { background: var(--orange); }       /* orange — partial payment */
+.tx-type-dot.advance { background: var(--green-medium); }
 .tx-type-dot.payment { background: var(--green-medium); } /* green — settled */
 
 .tx-actions {

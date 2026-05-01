@@ -3,6 +3,7 @@
 const FinanceModule = (() => {
     let container = null;
     let entries = [];
+    let workLogs = [];
     let filterMode = 'all'; // 'all' | 'year' | 'month' | 'custom'
     let filterFrom = '';
     let filterTo = '';
@@ -21,7 +22,7 @@ const FinanceModule = (() => {
 
     async function loadData() {
         try {
-            entries = await App.withLoading(() => Sheets.getFinanceEntries());
+            [entries, workLogs] = await App.withLoading(() => Promise.all([Sheets.getFinanceEntries(), Sheets.getWorkLogs()]));
         } catch (err) {
             App.handleError(err, 'Загрузка финансов');
             entries = [];
@@ -64,17 +65,23 @@ const FinanceModule = (() => {
         return { hours, earned, paid };
     }
 
+    function workHoursStr(e) {
+        const log = workLogs.find(l => l.date === e.date);
+        if (!log || !log.hours) return '';
+        const hrs = Math.floor(log.hours);
+        const mins = Math.round((log.hours - hrs) * 60);
+        return mins > 0 ? `${hrs}ч ${String(mins).padStart(2, '0')}м` : `${hrs}ч`;
+    }
+
     function render() {
         const balance = getBalance();
         const filtered = getFilteredEntries();
         const stats = getTotalStats(filtered);
 
         const balanceStatus = balance > 0 ? 'debt' : balance < 0 ? 'credit' : 'zero';
-        const balanceText = balance > 0
-            ? `Вы должны работнику<br>${App.formatAmount(balance)}`
-            : balance < 0
-            ? `Работник должен вам<br>${App.formatAmount(Math.abs(balance))}`
-            : 'Расчёт произведён<br>0 ₽';
+        const balanceText = balance === 0
+            ? '0 ₽'
+            : (balance > 0 ? '+' : '−') + App.formatAmount(Math.abs(balance));
 
         const now = new Date();
         const filterBar = `
@@ -165,7 +172,10 @@ const FinanceModule = (() => {
         const isWork = e.type === 'work';
         const sign = isWork ? '−' : '+';
         const cls = isWork ? 'tx-work' : 'tx-pay';
-        const label = isWork ? (TYPE_LABELS.work || 'Работа') : (e.description || TYPE_LABELS[e.type] || e.type);
+        const hoursStr = isWork ? workHoursStr(e) : '';
+        const label = isWork
+            ? `Смена ${App.formatDate(e.date)}${hoursStr ? ', ' + hoursStr : ''}`
+            : (e.description || TYPE_LABELS[e.type] || e.type);
         return `
         <div class="tx-item" data-id="${e.id}">
             <div class="tx-info">
