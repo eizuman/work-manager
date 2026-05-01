@@ -456,6 +456,10 @@ select.form-control {
     margin-bottom: 20px;
 }
 
+/* Close button always goes to the right regardless of DOM order */
+.bs-header .icon-btn { order: 3; }
+.bs-header .bs-title  { order: 2; }
+
 .bs-title {
     font-size: 18px;
     font-weight: 700;
@@ -1897,15 +1901,33 @@ canvas {
 
     /* Bottom sheet becomes centered modal on desktop */
     .bottom-sheet {
-        max-width: 540px;
+        max-width: 520px;
+        width: calc(100% - 48px);
         left: 50%;
-        transform: translateX(-50%) translateY(100%);
+        top: 50%;
+        bottom: auto;
+        right: auto;
         border-radius: 16px;
-        bottom: 0;
+        max-height: 88vh;
+        transform: translate(-50%, -46%) scale(0.97);
+        opacity: 0;
+        transition: transform 0.22s ease, opacity 0.22s ease;
     }
     .bottom-sheet.open {
-        transform: translateX(-50%) translateY(0);
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
     }
+    .bs-handle { display: none; }
+
+    /* Compact form inside desktop modal */
+    .bs-content { padding: 10px 16px 16px; }
+    .bs-header { margin-bottom: 14px; }
+    .bs-title { font-size: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-label { font-size: 12px; margin-bottom: 4px; }
+    .form-control { padding: 8px 12px; font-size: 14px; }
+    .form-control.textarea { min-height: 60px; }
+    .btn { padding: 10px 16px; font-size: 14px; }
 
     /* Toast */
     .toast {
