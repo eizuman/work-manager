@@ -175,7 +175,7 @@ function openSettings() {
         <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Почасовая ставка по умолчанию</label>
             <div class="form-control-with-icon">
-                <input type="number" class="form-control" id="settings-rate" value="${rate}" min="0.01" step="0.01" placeholder="700.00">
+                <input type="text" inputmode="decimal" class="form-control" id="settings-rate" value="${rate}" placeholder="700.00">
                 <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
             </div>
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня. Для каждой записи можно указать свою ставку.</div>
@@ -186,7 +186,7 @@ function openSettings() {
     const content = showBottomSheet(html);
     content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
     content.querySelector('#settings-save-btn').addEventListener('click', () => {
-        const val = parseFloat(content.querySelector('#settings-rate').value);
+        const val = parseFloat(content.querySelector('#settings-rate').value.replace(',', '.'));
         if (!val || val <= 0) { showToast('Укажите ставку', 'error'); return; }
         setHourlyRate(val);
         hideBottomSheet();

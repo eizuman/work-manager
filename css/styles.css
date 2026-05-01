@@ -1756,6 +1756,7 @@ canvas {
     .cal-today-btn {
         display: inline-flex !important;
         align-items: center;
+        width: auto;
         padding: 0 16px;
         height: 36px;
         border: 1.5px solid var(--border-dark);

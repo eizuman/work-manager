@@ -16,7 +16,7 @@ const CalendarModule = (() => {
 
     async function loadData() {
         try {
-            workLogs = await App.withLoading(() => Sheets.getWorkLogs());
+            workLogs = await App.withLoading(() => Sheets.getWorkLogs(true));
         } catch (err) {
             App.handleError(err, 'Загрузка календаря');
             workLogs = [];
@@ -265,7 +265,7 @@ const CalendarModule = (() => {
                     <span class="form-control-icon" style="font-size:13px;font-weight:600;color:var(--text-muted)">ч</span>
                 </div>
                 <div class="form-control-with-icon" style="flex:1">
-                    <input type="number" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700.00" min="0.01" step="0.01">
+                    <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || 700) : App.getHourlyRate()}" placeholder="700.00">
                     <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
                 </div>
             </div>
@@ -296,7 +296,7 @@ const CalendarModule = (() => {
             }
 
             try {
-                const rate = parseFloat(content.querySelector('#cal-rate').value) || App.getHourlyRate();
+                const rate = parseFloat(content.querySelector('#cal-rate').value.replace(',', '.')) || App.getHourlyRate();
                 const saved = await App.withLoading(() => Sheets.saveWorkLog({
                     date: ds,
                     hours,
