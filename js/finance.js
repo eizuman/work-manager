@@ -29,25 +29,19 @@ const FinanceModule = (() => {
         return entries.reduce((bal, e) => bal + (e.type === 'work' ? e.amount : -e.amount), 0);
     }
 
-    function getCurrentMonthStats() {
-        const now = new Date();
-        const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `${y}-${m}`;
-
-        let hours = 0, earned = 0, paid = 0;
+    function getTotalStats() {
+        let earned = 0, paid = 0;
         entries.forEach(e => {
-            if (!e.date.startsWith(prefix)) return;
-            if (e.type === 'work') { earned += e.amount; }
-            else { paid += e.amount; }
+            if (e.type === 'work') earned += e.amount;
+            else paid += e.amount;
         });
-
-        hours = earned / App.getHourlyRate();
+        const hours = earned / App.getHourlyRate();
         return { hours, earned, paid };
     }
 
     function render() {
         const balance = getBalance();
-        const stats = getCurrentMonthStats();
+        const stats = getTotalStats();
 
         const balanceStatus = balance > 0 ? 'debt' : balance < 0 ? 'credit' : 'zero';
         const balanceText = balance > 0
