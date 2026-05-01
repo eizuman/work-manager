@@ -10,6 +10,7 @@ const TasksModule = (() => {
     let filterStatuses = new Set();
     let filterWeathers = new Set();
     let filterTagIds = new Set();
+    let filtersExpanded = false;
 
     // Drag state
     let dragEl = null;
@@ -90,6 +91,33 @@ const TasksModule = (() => {
             return `<button class="filter-chip-tag ${colorCls}${filterTagIds.has(tid) ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
         }).join('');
 
+        const hasActiveFilters = filterStatuses.size > 0 || filterTagIds.size > 0;
+        const isMobile = window.innerWidth < 768;
+
+        const filterBarHtml = isMobile ? `
+        <div class="filters-bar" id="filters-bar">
+            <div class="filters-row-main">
+                <button class="filter-toggle-btn${hasActiveFilters ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                </button>
+                <div class="filters-row-weather">${weatherHtml}</div>
+                <button class="filter-tags-btn" id="tags-manage-btn" title="Управление тегами">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                </button>
+            </div>
+            ${filtersExpanded ? `<div class="filters-panel" id="filters-panel">
+                <div class="filters-row-status">${statusHtml}</div>
+                ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
+            </div>` : ''}
+        </div>` : `
+        <div class="filters-bar" id="filters-bar">
+            <div class="filters-row">
+                <div class="filters-row-status">${statusHtml}</div>
+                <div class="filters-row-weather">${weatherHtml}</div>
+            </div>
+            ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
+        </div>`;
+
         // Task list
         const taskItemsHtml = filtered.length === 0
             ? '<div class="empty-state"><div class="empty-state-text">Задач нет</div></div>'
@@ -97,24 +125,23 @@ const TasksModule = (() => {
 
         container.innerHTML = `
         <div class="tasks-wrap">
-            <div class="tasks-desktop-header">
+            <div class="tasks-desktop-header desktop-only">
                 <div class="tasks-desktop-title">Мои Задачи</div>
-                <button class="fab desktop-add-task-btn" id="add-task-btn-desktop" aria-label="Новая задача">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Новая задача
-                </button>
-            </div>
-            <div class="filters-bar" id="filters-bar">
-                <div class="filters-row">
-                    <div class="filters-row-status">${statusHtml}</div>
-                    <div class="filters-row-weather">${weatherHtml}</div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <button class="btn btn-outline" id="tags-manage-btn-desktop" style="padding:6px 12px;font-size:13px">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                        Теги
+                    </button>
+                    <button class="fab desktop-add-task-btn" id="add-task-btn-desktop" aria-label="Новая задача">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Новая задача
+                    </button>
                 </div>
-                ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
             </div>
+            ${filterBarHtml}
             <div class="task-list" id="task-list">
                 ${taskItemsHtml}
             </div>
-            ${renderTagsManage()}
         </div>
         <button class="fab mobile-only" id="add-task-btn" aria-label="Добавить задачу">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -181,8 +208,16 @@ const TasksModule = (() => {
     }
 
     function bindEvents() {
-        // Filters
+        // Filters bar
         container.querySelector('#filters-bar').addEventListener('click', (e) => {
+            // Toggle filter panel
+            const toggleBtn = e.target.closest('#filters-toggle-btn');
+            if (toggleBtn) {
+                filtersExpanded = !filtersExpanded;
+                render();
+                return;
+            }
+
             const chip = e.target.closest('.filter-chip, .filter-chip-tag');
             if (!chip) return;
             if ('filterStatus' in chip.dataset) {
@@ -202,6 +237,10 @@ const TasksModule = (() => {
             render();
         });
 
+        // Tags manage buttons
+        container.querySelector('#tags-manage-btn')?.addEventListener('click', openTagsManageSheet);
+        container.querySelector('#tags-manage-btn-desktop')?.addEventListener('click', openTagsManageSheet);
+
         // FAB (mobile + desktop)
         container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
         container.querySelector('#add-task-btn-desktop')?.addEventListener('click', () => openTaskForm(null));
@@ -214,7 +253,6 @@ const TasksModule = (() => {
             if (e.target.closest('[data-drag-handle]')) return;
             const editBtn = e.target.closest('.edit-task');
             const delBtn = e.target.closest('.delete-task');
-            const item = e.target.closest('.task-item[data-id]');
 
             if (editBtn) {
                 const task = tasks.find(t => t.id === editBtn.dataset.id);
@@ -233,15 +271,39 @@ const TasksModule = (() => {
                 });
             }
         });
+    }
 
-        // Tags management — click pill to edit
-        const tagsManage = container.querySelector('#tags-manage-list');
-        if (tagsManage) {
-            tagsManage.addEventListener('click', (e) => {
+    function openTagsManageSheet() {
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Редактирование тегов</span>
+            <div style="width:40px"></div>
+        </div>
+        ${tags.length === 0
+            ? '<div style="padding:20px 0;text-align:center;color:var(--text-muted)">Теги не созданы</div>'
+            : `<div class="tags-manage-pills" id="tags-sheet-list">
+                ${tags.map(tag => `
+                <span class="tag-pill ${App.tagColorClass(tag.id)} tag-manage-pill" data-tag-id="${tag.id}">${escapeHtml(tag.title)}</span>
+                `).join('')}
+               </div>`
+        }`;
+
+        const content = App.showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
+
+        const list = content.querySelector('#tags-sheet-list');
+        if (list) {
+            list.addEventListener('click', (e) => {
                 const pill = e.target.closest('.tag-manage-pill');
                 if (!pill) return;
                 const tag = tags.find(t => t.id === pill.dataset.tagId);
-                if (tag) openEditTag(tag);
+                if (tag) {
+                    App.hideBottomSheet();
+                    setTimeout(() => openEditTag(tag), 320);
+                }
             });
         }
     }

@@ -197,7 +197,7 @@ const FinanceModule = (() => {
     }
 
     function bindEvents() {
-        container.querySelector('#add-finance-btn')?.addEventListener('click', () => openFinanceForm(null));
+        container.querySelector('.fab.mobile-only')?.addEventListener('click', () => openFinanceForm(null));
         container.querySelector('.desktop-add-btn')?.addEventListener('click', () => openFinanceForm(null));
 
         container.querySelector('.finance-filter-bar')?.addEventListener('click', (e) => {
