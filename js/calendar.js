@@ -114,6 +114,10 @@ const CalendarModule = (() => {
             let dot = '';
             let content = '';
 
+            const noteIcon = (entry && entry.note)
+                ? `<span class="cal-day-note-icon" title="${escapeHtml(entry.note)}">i</span>`
+                : '';
+
             if (entry && status) {
                 const prog = getTaskProgress(entry.description);
                 const allTasks = getAllTasksText(entry.description);
@@ -123,24 +127,20 @@ const CalendarModule = (() => {
                 if (status === 'done') {
                     dot = '<div class="cal-day-dot"></div>';
                     content = `<div class="cal-day-content">
-                        <div class="cal-day-meta"><span class="cal-hours-pill">${formatHours(entry.hours)}</span>${progHtml}</div>
+                        <div class="cal-day-meta"><span class="cal-hours-pill">${formatHours(entry.hours)}</span>${progHtml}${noteIcon}</div>
                         ${descHtml}
                     </div>`;
                 } else {
                     dot = '<div class="cal-day-dot plan"></div>';
                     content = `<div class="cal-day-content plan">
-                        <div class="cal-day-meta"><span class="cal-plan-badge">ПЛАН</span>${progHtml}</div>
+                        <div class="cal-day-meta"><span class="cal-plan-badge">ПЛАН</span>${progHtml}${noteIcon}</div>
                         ${descHtml}
                     </div>`;
                 }
             }
 
-            const noteIcon = (entry && entry.note)
-                ? `<span class="cal-day-note-icon" title="${escapeHtml(entry.note)}">i</span>`
-                : '';
-
             daysHTML += `<div class="${classes}" data-date="${ds}">
-                <div class="cal-day-top">${noteIcon}<div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
+                <div class="cal-day-top"><div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
                 ${dot}${content}
             </div>`;
         }
