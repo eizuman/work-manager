@@ -1054,6 +1054,63 @@ select.form-control {
     line-height: 1.3;
 }
 
+/* Finance filter bar */
+.finance-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.fin-filter-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1.5px solid var(--border-dark);
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    white-space: nowrap;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.fin-filter-btn.active {
+    background: var(--green-dark);
+    color: white;
+    border-color: var(--green-dark);
+}
+
+.finance-filter-dates {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.fin-filter-date-lbl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.fin-date-input {
+    padding: 5px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color var(--transition);
+}
+
+.fin-date-input:focus { border-color: var(--green-medium); outline: none; }
+
+.fin-filter-sep { color: var(--text-muted); font-size: 14px; }
+
 .finance-list-title {
     font-size: 18px;
     font-weight: 700;

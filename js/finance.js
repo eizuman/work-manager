@@ -3,6 +3,9 @@
 const FinanceModule = (() => {
     let container = null;
     let entries = [];
+    let filterMode = 'all'; // 'all' | 'year' | 'month' | 'custom'
+    let filterFrom = '';
+    let filterTo = '';
 
     const TYPE_LABELS = {
         work: 'Работа',
@@ -29,9 +32,31 @@ const FinanceModule = (() => {
         return entries.reduce((bal, e) => bal + (e.type === 'work' ? e.amount : -e.amount), 0);
     }
 
-    function getTotalStats() {
+    function getFilteredEntries() {
+        if (filterMode === 'all') return entries;
+        const now = new Date();
+        let from = '', to = '';
+        if (filterMode === 'month') {
+            const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+            from = `${y}-${m}-01`;
+            to = `${y}-${m}-31`;
+        } else if (filterMode === 'year') {
+            from = `${now.getFullYear()}-01-01`;
+            to = `${now.getFullYear()}-12-31`;
+        } else if (filterMode === 'custom') {
+            from = filterFrom;
+            to = filterTo;
+        }
+        return entries.filter(e => {
+            if (from && e.date < from) return false;
+            if (to && e.date > to) return false;
+            return true;
+        });
+    }
+
+    function getTotalStats(ents) {
         let earned = 0, paid = 0;
-        entries.forEach(e => {
+        ents.forEach(e => {
             if (e.type === 'work') earned += e.amount;
             else paid += e.amount;
         });
@@ -41,7 +66,8 @@ const FinanceModule = (() => {
 
     function render() {
         const balance = getBalance();
-        const stats = getTotalStats();
+        const filtered = getFilteredEntries();
+        const stats = getTotalStats(filtered);
 
         const balanceStatus = balance > 0 ? 'debt' : balance < 0 ? 'credit' : 'zero';
         const balanceText = balance > 0
@@ -50,7 +76,21 @@ const FinanceModule = (() => {
             ? `Работник должен вам<br>${App.formatAmount(Math.abs(balance))}`
             : 'Расчёт произведён<br>0 ₽';
 
-        const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.timestamp.localeCompare(a.timestamp));
+        const now = new Date();
+        const filterBar = `
+        <div class="finance-filter-bar">
+            <button class="fin-filter-btn${filterMode === 'all' ? ' active' : ''}" data-fmode="all">Всё время</button>
+            <button class="fin-filter-btn${filterMode === 'year' ? ' active' : ''}" data-fmode="year">${now.getFullYear()}</button>
+            <button class="fin-filter-btn${filterMode === 'month' ? ' active' : ''}" data-fmode="month">${App.MONTHS_FULL_RU[now.getMonth()]}</button>
+            <button class="fin-filter-btn${filterMode === 'custom' ? ' active' : ''}" data-fmode="custom">Период</button>
+        </div>
+        ${filterMode === 'custom' ? `<div class="finance-filter-dates">
+            <label class="fin-filter-date-lbl">с <input type="date" class="fin-date-input" id="filter-from" value="${filterFrom}"></label>
+            <span class="fin-filter-sep">—</span>
+            <label class="fin-filter-date-lbl">по <input type="date" class="fin-date-input" id="filter-to" value="${filterTo}"></label>
+        </div>` : ''}`;
+
+        const sortedEntries = [...filtered].sort((a, b) => b.date.localeCompare(a.date) || b.timestamp.localeCompare(a.timestamp));
 
         const addBtnHtml = `<button class="fab" id="add-finance-btn" aria-label="Добавить транзакцию">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -67,6 +107,8 @@ const FinanceModule = (() => {
                     <div class="balance-amount ${balanceStatus}">${balanceText}</div>
                 </div>
             </div>
+
+            ${filterBar}
 
             <div class="stats-grid">
                 <div class="stat-card">
@@ -147,6 +189,19 @@ const FinanceModule = (() => {
     function bindEvents() {
         container.querySelector('#add-finance-btn')?.addEventListener('click', () => openFinanceForm(null));
         container.querySelector('.desktop-add-btn')?.addEventListener('click', () => openFinanceForm(null));
+
+        container.querySelector('.finance-filter-bar')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.fin-filter-btn');
+            if (!btn) return;
+            filterMode = btn.dataset.fmode;
+            render();
+        });
+        container.querySelector('#filter-from')?.addEventListener('change', (e) => {
+            filterFrom = e.target.value; render();
+        });
+        container.querySelector('#filter-to')?.addEventListener('change', (e) => {
+            filterTo = e.target.value; render();
+        });
 
         container.querySelector('#tx-list').addEventListener('click', (e) => {
             const editBtn = e.target.closest('.edit-tx');
