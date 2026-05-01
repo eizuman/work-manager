@@ -59,10 +59,13 @@ const PurchasesModule = (() => {
                 </div>
             </div>
 
-            <button class="btn btn-outline desktop-only" id="add-purchase-btn-desktop" style="width:auto;padding:8px 16px;font-size:14px;margin-bottom:16px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Добавить позицию
-            </button>
+            <div class="section-list-title desktop-only">
+                <span>Список закупок</span>
+                <button class="fab desktop-add-btn" id="add-purchase-btn-desktop" aria-label="Добавить позицию">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span class="fab-label">Добавить позицию</span>
+                </button>
+            </div>
 
             <div class="purchase-section-header">
                 <div class="purchase-section-title">К покупке</div>

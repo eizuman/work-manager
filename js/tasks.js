@@ -133,10 +133,13 @@ const TasksModule = (() => {
                 </button>
             </div>
             ${filterBarHtml}
-            <button class="btn btn-outline desktop-only" id="add-task-btn-desktop" style="width:auto;padding:8px 16px;font-size:14px;margin-bottom:12px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Новая задача
-            </button>
+            <div class="section-list-title desktop-only">
+                <span>Список задач</span>
+                <button class="fab desktop-add-btn" id="add-task-btn-desktop" aria-label="Новая задача">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span class="fab-label">Новая задача</span>
+                </button>
+            </div>
             <div class="task-list" id="task-list">
                 ${taskItemsHtml}
             </div>

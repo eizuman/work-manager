@@ -2312,6 +2312,16 @@ canvas {
     .filters-bar { padding: 10px 24px; }
     .filters-row-status { flex-wrap: nowrap; }
 
+    .section-list-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 24px 12px;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
     .task-list { padding: 12px 24px; }
 
     .task-item { padding: 13px 12px 13px 8px; }
