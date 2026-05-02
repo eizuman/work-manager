@@ -194,12 +194,13 @@ function openSettings() {
 
     const content = showBottomSheet(html);
     content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
-    content.querySelector('#settings-save-btn').addEventListener('click', () => {
+    content.querySelector('#settings-save-btn').addEventListener('click', async () => {
         const val = parseFloat(content.querySelector('#settings-rate').value.replace(',', '.'));
         if (!val || val <= 0) { showToast('Укажите ставку', 'error'); return; }
         setHourlyRate(val);
         hideBottomSheet();
         showToast('Настройки сохранены');
+        try { await Sheets.saveSetting('hourly_rate', val); } catch (_) { /* non-critical */ }
     });
     content.querySelector('#settings-tags-btn').addEventListener('click', () => {
         hideBottomSheet();
@@ -245,8 +246,16 @@ window.App = {
 };
 
 // ===== Init =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
+
+    // Sync hourly_rate from Sheets → localStorage (single source of truth)
+    try {
+        const settings = await Sheets.getSettings();
+        if (settings.hourly_rate != null) {
+            setHourlyRate(parseFloat(settings.hourly_rate));
+        }
+    } catch (_) { /* use existing localStorage value */ }
 
     // Bottom nav click (mobile)
     document.getElementById('bottom-nav').addEventListener('click', (e) => {

@@ -569,6 +569,47 @@ async function deletePurchase(id) {
     await deleteRow('purchases', found._rowIndex);
 }
 
+// ===== settings =====
+// Sheet: settings | Columns: key(0) | value(1)
+
+async function _ensureSettingsSheet() {
+    await _loadSheetIds();
+    if (_sheetIds['settings'] !== undefined) return;
+    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}:batchUpdate`;
+    await _apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'settings' } } }] })
+    });
+    Object.keys(_sheetIds).forEach(k => delete _sheetIds[k]);
+    await _loadSheetIds();
+}
+
+async function getSettings() {
+    try {
+        const rows = await readSheet('settings', true);
+        const obj = {};
+        rows.forEach(r => { if (r.values[0] != null) obj[String(r.values[0])] = r.values[1]; });
+        return obj;
+    } catch (_) { return {}; }
+}
+
+async function saveSetting(key, value) {
+    try {
+        const rows = await readSheet('settings');
+        const existing = rows.find(r => String(r.values[0]) === String(key));
+        if (existing) {
+            await updateRow('settings', existing.rowIndex, [key, value]);
+        } else {
+            await appendRow('settings', [key, value]);
+        }
+    } catch (_) {
+        try {
+            await _ensureSettingsSheet();
+            await appendRow('settings', [key, value]);
+        } catch (_2) { /* ignore */ }
+    }
+}
+
 // Export to window
 window.Sheets = {
     getWorkLogs, saveWorkLog, deleteWorkLog,
@@ -576,5 +617,6 @@ window.Sheets = {
     getTasks, addTask, updateTask, deleteTask, reorderTasks,
     getTags, addTag, updateTag, deleteTag,
     getPurchases, addPurchase, updatePurchase, deletePurchase,
+    getSettings, saveSetting,
     invalidateCache, generateId
 };
