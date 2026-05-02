@@ -114,9 +114,12 @@ const CalendarModule = (() => {
             const entry = getWorkLogForDate(ds);
             const status = getDayStatus(entry);
 
+            const isMissed = !entry && dow < 5 && ds < todayStr;
+
             let classes = 'cal-day';
             if (isToday) classes += ' today';
             if (dow >= 5) classes += ' weekend';
+            if (isMissed) classes += ' missed';
 
             let dot = '';
             let content = '';

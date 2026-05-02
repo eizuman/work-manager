@@ -799,6 +799,25 @@ select.form-control {
     background: rgba(255,255,255,0.7);
 }
 
+.cal-day.missed .cal-day-num {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.cal-day.missed::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(
+        to bottom right,
+        transparent calc(50% - 0.7px),
+        rgba(0,0,0,0.18) calc(50% - 0.7px),
+        rgba(0,0,0,0.18) calc(50% + 0.7px),
+        transparent calc(50% + 0.7px)
+    );
+    pointer-events: none;
+}
+
 /* Calendar Day Detail */
 .cal-detail-date {
     font-size: 14px;
