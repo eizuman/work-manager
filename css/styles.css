@@ -643,7 +643,23 @@ select.form-control {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: auto;
+}
+.filter-tags-btn.has-active {
+    border-color: var(--green-dark);
+    color: var(--green-dark);
+}
+.filters-mobile-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+.filters-inline-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
 }
 .filters-panel {
     display: flex;
@@ -1272,9 +1288,11 @@ select.form-control {
 
 .filters-bar {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--border);
 }
 
@@ -2364,6 +2382,12 @@ canvas {
 
     .filters-bar { padding: 10px 24px; }
     .filters-row-status { flex-wrap: nowrap; }
+
+    /* Desktop Row 3 two-column layout */
+    .tasks-row-3 { align-items: center; }
+    .tasks-row3-left { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+    .tasks-row3-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .filters-tags-row-inline { display: flex; flex-wrap: wrap; gap: 6px; }
 
     .section-list-title {
         display: flex;

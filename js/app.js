@@ -170,14 +170,24 @@ function openSettings() {
         <span class="bs-title">Настройки</span>
         <div style="width:40px"></div>
     </div>
-    <div class="card" style="margin-bottom:20px">
+    <div class="card" style="margin-bottom:16px">
         <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Почасовая ставка по умолчанию</label>
             <div class="form-control-with-icon">
                 <input type="text" inputmode="decimal" class="form-control" id="settings-rate" value="${rate}" placeholder="700.00">
                 <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
             </div>
-            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня. Для каждой записи можно указать свою ставку.</div>
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня.</div>
+        </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+        <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Теги задач</label>
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Создание, переименование и удаление тегов</div>
+            <button class="btn btn-outline" id="settings-tags-btn" style="width:auto;padding:8px 16px;font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                Управление тегами
+            </button>
         </div>
     </div>
     <button class="btn btn-primary" id="settings-save-btn">Сохранить</button>`;
@@ -190,6 +200,10 @@ function openSettings() {
         setHourlyRate(val);
         hideBottomSheet();
         showToast('Настройки сохранены');
+    });
+    content.querySelector('#settings-tags-btn').addEventListener('click', () => {
+        hideBottomSheet();
+        setTimeout(() => TasksModule.openTagsManageSheet(), 320);
     });
 }
 
@@ -282,7 +296,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <nav class="nav-sheet">
             ${NAV_ITEMS.map(m => `<button class="nav-sheet-item${currentModule === m.id ? ' active' : ''}" data-module="${m.id}">${m.svg} ${m.label}</button>`).join('')}
-        </nav>`;
+        </nav>
+        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+            <button class="nav-sheet-item" id="burger-settings-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Настройки
+            </button>
+        </div>`;
         const content = showBottomSheet(html);
         content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
         content.querySelector('.nav-sheet').addEventListener('click', (e) => {
@@ -290,6 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!btn) return;
             hideBottomSheet();
             setTimeout(() => switchModule(btn.dataset.module), 50);
+        });
+        content.querySelector('#burger-settings-btn').addEventListener('click', () => {
+            hideBottomSheet();
+            setTimeout(() => openSettings(), 320);
         });
     });
 

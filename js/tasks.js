@@ -12,6 +12,7 @@ const TasksModule = (() => {
     let filterTagIds = new Set();
     let filtersExpanded = false;
     let statusDropdownOpen = false;
+    let tagsExpanded = false;
     let _docHandler = null;
 
     // Drag state
@@ -113,51 +114,56 @@ const TasksModule = (() => {
         container.innerHTML = `
         <div class="tasks-wrap">
 
-            <!-- Desktop Row 1: title + tags button -->
+            <!-- Desktop Row 1: title only -->
             <div class="tasks-row tasks-row-1 desktop-only">
                 <div class="tasks-desktop-title">Задачи</div>
-                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="width:auto;flex-shrink:0;padding:6px 14px;font-size:13px">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    Редактировать теги
-                </button>
             </div>
 
-            <!-- Desktop Row 2: add button + status filter dropdown -->
+            <!-- Desktop Row 2: add button -->
             <div class="tasks-row tasks-row-2 desktop-only">
                 <button class="fab desktop-add-btn" id="add-task-btn-desktop" aria-label="Новая задача">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span class="fab-label">Новая задача</span>
                 </button>
-                <div class="task-filter-wrap" id="status-filter-wrap">
-                    <button class="task-filter-btn${filterStatuses.size > 0 ? ' active' : ''}" id="status-filter-btn">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                        Фильтр${filterStatuses.size > 0 ? ' · ' + filterStatuses.size : ''}
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${statusDropdownOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
-                    </button>
-                    ${statusDropdownHtml}
-                </div>
             </div>
 
-            <!-- Desktop Row 3: tag chips + weather -->
+            <!-- Desktop Row 3: [Теги toggle + chips] ... [Фильтр dropdown + weather] -->
             <div class="tasks-row tasks-row-3 desktop-only">
-                <div class="filters-tags-row" style="flex:1;flex-wrap:wrap">${tagChipsHtml}</div>
-                <div class="filters-row-weather" style="flex-shrink:0">${weatherHtml}</div>
+                <div class="tasks-row3-left">
+                    <button class="task-filter-btn${filterTagIds.size > 0 ? ' active' : ''}" id="tags-toggle-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                        Теги${filterTagIds.size > 0 ? ' · ' + filterTagIds.size : ''}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${tagsExpanded ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
+                    </button>
+                    ${tagsExpanded && tagChipsHtml ? `<div class="filters-tags-row-inline">${tagChipsHtml}</div>` : ''}
+                </div>
+                <div class="tasks-row3-right">
+                    <div class="task-filter-wrap" id="status-filter-wrap">
+                        <button class="task-filter-btn${filterStatuses.size > 0 ? ' active' : ''}" id="status-filter-btn">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            Фильтр${filterStatuses.size > 0 ? ' · ' + filterStatuses.size : ''}
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${statusDropdownOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
+                        </button>
+                        ${statusDropdownHtml}
+                    </div>
+                    <div class="filters-row-weather">${weatherHtml}</div>
+                </div>
             </div>
 
             <!-- Mobile filter bar -->
             <div class="filters-bar mobile-only" id="filters-bar">
-                <div class="filters-row-main">
-                    <button class="filter-toggle-btn${hasActiveFilters ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
+                <div class="filters-mobile-main">
+                    <button class="filter-toggle-btn${filterStatuses.size > 0 ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                     </button>
-                    <div class="filters-row-weather">${weatherHtml}</div>
-                    <button class="filter-tags-btn" id="tags-manage-btn" title="Управление тегами">
+                    <button class="filter-tags-btn${filterTagIds.size > 0 ? ' has-active' : ''}" id="tags-manage-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     </button>
+                    ${tagChipsHtml ? `<div class="filters-inline-tags">${tagChipsHtml}</div>` : ''}
                 </div>
-                ${filtersExpanded ? `<div class="filters-panel" id="filters-panel">
+                <div class="filters-row-weather">${weatherHtml}</div>
+                ${filtersExpanded ? `<div class="filters-panel" id="filters-panel" style="width:100%;padding-top:6px">
                     <div class="filters-row-status">${statusHtml}</div>
-                    ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
                 </div>` : ''}
             </div>
 
@@ -294,10 +300,17 @@ const TasksModule = (() => {
             }
         }
 
-        // Desktop row 3: weather + tag chips
+        // Desktop row 3
         const row3 = container.querySelector('.tasks-row-3');
         if (row3) {
+            // Tags toggle button
+            row3.querySelector('#tags-toggle-btn')?.addEventListener('click', () => {
+                tagsExpanded = !tagsExpanded;
+                render();
+            });
+            // Tag chip + weather chip clicks
             row3.addEventListener('click', (e) => {
+                if (e.target.closest('#tags-toggle-btn')) return;
                 const chip = e.target.closest('.filter-chip, .filter-chip-tag');
                 if (!chip) return;
                 applyFilterChip(chip);
@@ -305,9 +318,8 @@ const TasksModule = (() => {
             });
         }
 
-        // Tags manage buttons
+        // Mobile tags manage (opens sheet)
         container.querySelector('#tags-manage-btn')?.addEventListener('click', openTagsManageSheet);
-        container.querySelector('#tags-manage-btn-desktop')?.addEventListener('click', openTagsManageSheet);
 
         // FAB
         container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
@@ -793,5 +805,5 @@ const TasksModule = (() => {
         return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    return { init };
+    return { init, openTagsManageSheet };
 })();
