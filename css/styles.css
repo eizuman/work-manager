@@ -2293,20 +2293,73 @@ canvas {
 /* ===== TASKS DESKTOP ===== */
     .tasks-wrap { padding: 0; }
 
-    .tasks-desktop-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 20px 24px 0;
-        margin-bottom: 12px;
-        gap: 16px;
-    }
-    .tasks-desktop-header .btn { width: auto; flex-shrink: 0; }
-
     .tasks-desktop-title {
         font-size: 22px;
         font-weight: 700;
         color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    /* 3-row desktop layout */
+    .tasks-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        gap: 16px;
+    }
+    .tasks-row-1 { padding-top: 20px; padding-bottom: 14px; }
+    .tasks-row-2 { padding-bottom: 10px; }
+    .tasks-row-3 { padding-bottom: 12px; gap: 12px; }
+    .tasks-row .btn { width: auto; flex-shrink: 0; }
+
+    /* Status filter dropdown */
+    .task-filter-wrap { position: relative; }
+    .task-filter-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 13px;
+        border-radius: var(--radius-sm);
+        border: 1.5px solid var(--border-dark);
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background var(--transition);
+        white-space: nowrap;
+    }
+    .task-filter-btn:hover { background: var(--bg-hover); }
+    .task-filter-btn.active { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+    .task-status-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        background: var(--bg-card);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+        padding: 6px 0;
+        min-width: 170px;
+        z-index: 200;
+    }
+    .task-status-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--text-primary);
+        user-select: none;
+    }
+    .task-status-option:hover { background: var(--bg-hover); }
+    .task-status-option input[type="checkbox"] {
+        width: 15px; height: 15px;
+        cursor: pointer;
+        accent-color: var(--green-dark);
+        flex-shrink: 0;
     }
 
     .filters-bar { padding: 10px 24px; }

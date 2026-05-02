@@ -11,6 +11,8 @@ const TasksModule = (() => {
     let filterWeathers = new Set();
     let filterTagIds = new Set();
     let filtersExpanded = false;
+    let statusDropdownOpen = false;
+    let _docHandler = null;
 
     // Drag state
     let dragEl = null;
@@ -92,31 +94,16 @@ const TasksModule = (() => {
         }).join('');
 
         const hasActiveFilters = filterStatuses.size > 0 || filterTagIds.size > 0;
-        const isMobile = window.innerWidth < 768;
 
-        const filterBarHtml = isMobile ? `
-        <div class="filters-bar" id="filters-bar">
-            <div class="filters-row-main">
-                <button class="filter-toggle-btn${hasActiveFilters ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                </button>
-                <div class="filters-row-weather">${weatherHtml}</div>
-                <button class="filter-tags-btn" id="tags-manage-btn" title="Управление тегами">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                </button>
-            </div>
-            ${filtersExpanded ? `<div class="filters-panel" id="filters-panel">
-                <div class="filters-row-status">${statusHtml}</div>
-                ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
-            </div>` : ''}
-        </div>` : `
-        <div class="filters-bar" id="filters-bar">
-            <div class="filters-row">
-                <div class="filters-row-status">${statusHtml}</div>
-                <div class="filters-row-weather">${weatherHtml}</div>
-            </div>
-            ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
-        </div>`;
+        // Desktop: status filter dropdown
+        const statusDropdownHtml = statusDropdownOpen ? `
+        <div class="task-status-dropdown" id="status-dropdown">
+            ${['new', 'in_progress', 'done'].map(s => `
+            <label class="task-status-option">
+                <input type="checkbox" value="${s}"${filterStatuses.has(s) ? ' checked' : ''}>
+                <span>${STATUS_LABELS[s]}</span>
+            </label>`).join('')}
+        </div>` : '';
 
         // Task list
         const taskItemsHtml = filtered.length === 0
@@ -125,21 +112,55 @@ const TasksModule = (() => {
 
         container.innerHTML = `
         <div class="tasks-wrap">
-            <div class="tasks-desktop-header desktop-only">
-                <div class="tasks-desktop-title" style="white-space:nowrap">Мои Задачи</div>
-                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="width:auto;flex-shrink:0;padding:6px 12px;font-size:13px">
+
+            <!-- Desktop Row 1: title + tags button -->
+            <div class="tasks-row tasks-row-1 desktop-only">
+                <div class="tasks-desktop-title">Задачи</div>
+                <button class="btn btn-outline" id="tags-manage-btn-desktop" style="width:auto;flex-shrink:0;padding:6px 14px;font-size:13px">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    Теги
+                    Редактировать теги
                 </button>
             </div>
-            ${filterBarHtml}
-            <div class="section-list-title desktop-only">
-                <span>Список задач</span>
+
+            <!-- Desktop Row 2: add button + status filter dropdown -->
+            <div class="tasks-row tasks-row-2 desktop-only">
                 <button class="fab desktop-add-btn" id="add-task-btn-desktop" aria-label="Новая задача">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span class="fab-label">Новая задача</span>
                 </button>
+                <div class="task-filter-wrap" id="status-filter-wrap">
+                    <button class="task-filter-btn${filterStatuses.size > 0 ? ' active' : ''}" id="status-filter-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                        Фильтр${filterStatuses.size > 0 ? ' · ' + filterStatuses.size : ''}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${statusDropdownOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
+                    </button>
+                    ${statusDropdownHtml}
+                </div>
             </div>
+
+            <!-- Desktop Row 3: tag chips + weather -->
+            <div class="tasks-row tasks-row-3 desktop-only">
+                <div class="filters-tags-row" style="flex:1;flex-wrap:wrap">${tagChipsHtml}</div>
+                <div class="filters-row-weather" style="flex-shrink:0">${weatherHtml}</div>
+            </div>
+
+            <!-- Mobile filter bar -->
+            <div class="filters-bar mobile-only" id="filters-bar">
+                <div class="filters-row-main">
+                    <button class="filter-toggle-btn${hasActiveFilters ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    </button>
+                    <div class="filters-row-weather">${weatherHtml}</div>
+                    <button class="filter-tags-btn" id="tags-manage-btn" title="Управление тегами">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    </button>
+                </div>
+                ${filtersExpanded ? `<div class="filters-panel" id="filters-panel">
+                    <div class="filters-row-status">${statusHtml}</div>
+                    ${uniqueTagIds.length > 0 ? `<div class="filters-tags-row">${tagChipsHtml}</div>` : ''}
+                </div>` : ''}
+            </div>
+
             <div class="task-list" id="task-list">
                 ${taskItemsHtml}
             </div>
@@ -188,9 +209,6 @@ const TasksModule = (() => {
                 <button class="task-action-btn edit-task" data-id="${task.id}" aria-label="Редактировать">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button class="task-action-btn delete-task" data-id="${task.id}" aria-label="Удалить">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                </button>
             </div>
         </div>`;
     }
@@ -208,68 +226,102 @@ const TasksModule = (() => {
         </div>`;
     }
 
+    function applyFilterChip(chip) {
+        if ('filterStatus' in chip.dataset) {
+            const val = chip.dataset.filterStatus;
+            if (val === 'all') filterStatuses.clear();
+            else if (filterStatuses.has(val)) filterStatuses.delete(val);
+            else filterStatuses.add(val);
+        } else if ('filterWeather' in chip.dataset) {
+            const val = chip.dataset.filterWeather;
+            if (filterWeathers.has(val)) filterWeathers.delete(val);
+            else filterWeathers.add(val);
+        } else if ('filterTag' in chip.dataset) {
+            const val = chip.dataset.filterTag;
+            if (filterTagIds.has(val)) filterTagIds.delete(val);
+            else filterTagIds.add(val);
+        }
+    }
+
     function bindEvents() {
-        // Filters bar
-        container.querySelector('#filters-bar').addEventListener('click', (e) => {
-            // Toggle filter panel
-            const toggleBtn = e.target.closest('#filters-toggle-btn');
-            if (toggleBtn) {
-                filtersExpanded = !filtersExpanded;
+        // Clear old doc handler
+        if (_docHandler) { document.removeEventListener('click', _docHandler); _docHandler = null; }
+
+        // Mobile filter bar
+        const filtersBar = container.querySelector('#filters-bar');
+        if (filtersBar) {
+            filtersBar.addEventListener('click', (e) => {
+                const toggleBtn = e.target.closest('#filters-toggle-btn');
+                if (toggleBtn) { filtersExpanded = !filtersExpanded; render(); return; }
+                const chip = e.target.closest('.filter-chip, .filter-chip-tag');
+                if (!chip) return;
+                applyFilterChip(chip);
                 render();
-                return;
+            });
+        }
+
+        // Desktop status filter dropdown
+        const statusFilterWrap = container.querySelector('#status-filter-wrap');
+        if (statusFilterWrap) {
+            // Stop clicks inside wrap from reaching document (prevents premature close)
+            statusFilterWrap.addEventListener('click', e => e.stopPropagation());
+
+            container.querySelector('#status-filter-btn')?.addEventListener('click', () => {
+                statusDropdownOpen = !statusDropdownOpen;
+                render();
+            });
+
+            const statusDropdown = container.querySelector('#status-dropdown');
+            if (statusDropdown) {
+                statusDropdown.addEventListener('change', (e) => {
+                    const cb = e.target.closest('input[type="checkbox"]');
+                    if (!cb) return;
+                    if (cb.checked) filterStatuses.add(cb.value);
+                    else filterStatuses.delete(cb.value);
+                    render();
+                });
             }
 
-            const chip = e.target.closest('.filter-chip, .filter-chip-tag');
-            if (!chip) return;
-            if ('filterStatus' in chip.dataset) {
-                const val = chip.dataset.filterStatus;
-                if (val === 'all') filterStatuses.clear();
-                else if (filterStatuses.has(val)) filterStatuses.delete(val);
-                else filterStatuses.add(val);
-            } else if ('filterWeather' in chip.dataset) {
-                const val = chip.dataset.filterWeather;
-                if (filterWeathers.has(val)) filterWeathers.delete(val);
-                else filterWeathers.add(val);
-            } else if ('filterTag' in chip.dataset) {
-                const val = chip.dataset.filterTag;
-                if (filterTagIds.has(val)) filterTagIds.delete(val);
-                else filterTagIds.add(val);
+            // Close dropdown on outside click
+            if (statusDropdownOpen) {
+                _docHandler = () => {
+                    document.removeEventListener('click', _docHandler);
+                    _docHandler = null;
+                    statusDropdownOpen = false;
+                    render();
+                };
+                setTimeout(() => { if (_docHandler) document.addEventListener('click', _docHandler); }, 0);
             }
-            render();
-        });
+        }
+
+        // Desktop row 3: weather + tag chips
+        const row3 = container.querySelector('.tasks-row-3');
+        if (row3) {
+            row3.addEventListener('click', (e) => {
+                const chip = e.target.closest('.filter-chip, .filter-chip-tag');
+                if (!chip) return;
+                applyFilterChip(chip);
+                render();
+            });
+        }
 
         // Tags manage buttons
         container.querySelector('#tags-manage-btn')?.addEventListener('click', openTagsManageSheet);
         container.querySelector('#tags-manage-btn-desktop')?.addEventListener('click', openTagsManageSheet);
 
-        // FAB (mobile + desktop)
+        // FAB
         container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
         container.querySelector('#add-task-btn-desktop')?.addEventListener('click', () => openTaskForm(null));
 
-        // Task list actions
+        // Task list
         const taskList = container.querySelector('#task-list');
         if (!taskList) return;
-
         taskList.addEventListener('click', (e) => {
             if (e.target.closest('[data-drag-handle]')) return;
             const editBtn = e.target.closest('.edit-task');
-            const delBtn = e.target.closest('.delete-task');
-
             if (editBtn) {
                 const task = tasks.find(t => t.id === editBtn.dataset.id);
                 if (task) openTaskForm(task);
-            } else if (delBtn) {
-                const id = delBtn.dataset.id;
-                App.showConfirmDialog('Удалить задачу?', async () => {
-                    try {
-                        await App.withLoading(() => Sheets.deleteTask(id));
-                        tasks = tasks.filter(t => t.id !== id);
-                        render();
-                        App.showToast('Задача удалена');
-                    } catch (err) {
-                        App.handleError(err, 'Удаление');
-                    }
-                });
             }
         });
     }
