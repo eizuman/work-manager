@@ -590,23 +590,20 @@ async function getSettings() {
         const obj = {};
         rows.forEach(r => { if (r.values[0] != null) obj[String(r.values[0])] = r.values[1]; });
         return obj;
-    } catch (_) { return {}; }
+    } catch (e) {
+        console.error('getSettings failed:', e);
+        return {};
+    }
 }
 
 async function saveSetting(key, value) {
-    try {
-        const rows = await readSheet('settings');
-        const existing = rows.find(r => String(r.values[0]) === String(key));
-        if (existing) {
-            await updateRow('settings', existing.rowIndex, [key, value]);
-        } else {
-            await appendRow('settings', [key, value]);
-        }
-    } catch (_) {
-        try {
-            await _ensureSettingsSheet();
-            await appendRow('settings', [key, value]);
-        } catch (_2) { /* ignore */ }
+    await _ensureSettingsSheet();
+    const rows = await readSheet('settings');
+    const existing = rows.find(r => String(r.values[0]) === String(key));
+    if (existing) {
+        await updateRow('settings', existing.rowIndex, [key, value]);
+    } else {
+        await appendRow('settings', [key, value]);
     }
 }
 

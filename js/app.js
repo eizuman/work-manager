@@ -199,8 +199,13 @@ function openSettings() {
         if (!val || val <= 0) { showToast('Укажите ставку', 'error'); return; }
         setHourlyRate(val);
         hideBottomSheet();
-        showToast('Настройки сохранены');
-        try { await Sheets.saveSetting('hourly_rate', val); } catch (_) { /* non-critical */ }
+        try {
+            await Sheets.saveSetting('hourly_rate', val);
+            showToast('Настройки сохранены');
+        } catch (e) {
+            console.error('saveSetting failed:', e);
+            showToast('Сохранено локально. Ошибка синхронизации: ' + (e.message || e), 'error');
+        }
     });
     content.querySelector('#settings-tags-btn').addEventListener('click', () => {
         hideBottomSheet();
@@ -254,8 +259,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const settings = await Sheets.getSettings();
         if (settings.hourly_rate != null) {
             setHourlyRate(parseFloat(settings.hourly_rate));
+            console.log('hourly_rate synced from Sheets:', settings.hourly_rate);
+        } else {
+            console.log('hourly_rate not found in Sheets, using localStorage:', getHourlyRate());
         }
-    } catch (_) { /* use existing localStorage value */ }
+    } catch (e) {
+        console.error('Settings sync failed:', e);
+    }
 
     // Bottom nav click (mobile)
     document.getElementById('bottom-nav').addEventListener('click', (e) => {
