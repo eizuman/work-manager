@@ -959,6 +959,12 @@ select.form-control {
     gap: 8px;
 }
 
+.checklist-row.dragging {
+    opacity: 0.5;
+    background: var(--green-pale);
+    border-radius: var(--radius-xs);
+}
+
 .checklist-cb {
     flex-shrink: 0;
     width: 22px;

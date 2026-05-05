@@ -220,6 +220,12 @@ const CalendarModule = (() => {
     function addChecklistRow(cont, item, insertAfter = null) {
         const row = document.createElement('div');
         row.className = 'checklist-row';
+        row.setAttribute('draggable', 'true');
+
+        const handle = document.createElement('div');
+        handle.className = 'task-drag-handle';
+        handle.setAttribute('data-drag-handle', '');
+        handle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg>';
 
         const cb = document.createElement('button');
         cb.type = 'button';
@@ -237,7 +243,7 @@ const CalendarModule = (() => {
         del.className = 'checklist-del';
         del.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
-        row.append(cb, input, del);
+        row.append(handle, cb, input, del);
 
         if (insertAfter) insertAfter.after(row);
         else cont.appendChild(row);
@@ -470,6 +476,64 @@ const CalendarModule = (() => {
         });
     }
 
+    // ===== Checklist drag-and-drop =====
+
+    function bindChecklistDrag(cont) {
+        let dragEl = null;
+
+        cont.addEventListener('dragstart', (e) => {
+            dragEl = e.target.closest('.checklist-row');
+            if (!dragEl) return;
+            dragEl.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        cont.addEventListener('dragend', () => {
+            if (dragEl) { dragEl.classList.remove('dragging'); dragEl = null; }
+        });
+
+        cont.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const target = e.target.closest('.checklist-row');
+            if (!target || target === dragEl) return;
+            const rect = target.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) {
+                cont.insertBefore(dragEl, target);
+            } else {
+                cont.insertBefore(dragEl, target.nextSibling);
+            }
+        });
+
+        cont.addEventListener('touchstart', (e) => {
+            const handle = e.target.closest('[data-drag-handle]');
+            if (!handle) return;
+            e.preventDefault();
+            dragEl = handle.closest('.checklist-row');
+            dragEl.classList.add('dragging');
+        }, { passive: false });
+
+        cont.addEventListener('touchmove', (e) => {
+            if (!dragEl) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (!elBelow) return;
+            const target = elBelow.closest('.checklist-row');
+            if (target && target !== dragEl) {
+                const rect = target.getBoundingClientRect();
+                if (touch.clientY < rect.top + rect.height / 2) {
+                    cont.insertBefore(dragEl, target);
+                } else {
+                    cont.insertBefore(dragEl, target.nextSibling);
+                }
+            }
+        }, { passive: false });
+
+        cont.addEventListener('touchend', () => {
+            if (dragEl) { dragEl.classList.remove('dragging'); dragEl = null; }
+        });
+    }
+
     // ===== Edit form =====
 
     function openEditForm(ds, existingEntry) {
@@ -545,6 +609,7 @@ const CalendarModule = (() => {
         const initialItems = existingEntry ? parseItems(existingEntry.description) : [];
         if (initialItems.length === 0) initialItems.push({ checked: false, text: '' });
         initialItems.forEach(item => addChecklistRow(tasksContainer, item));
+        bindChecklistDrag(tasksContainer);
 
         content.querySelector('#cal-add-task').addEventListener('click', () => {
             addChecklistRow(tasksContainer, { checked: false, text: '' })
