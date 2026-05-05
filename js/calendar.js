@@ -38,13 +38,6 @@ const CalendarModule = (() => {
         return mins > 0 ? `${hrs}ч ${String(mins).padStart(2, '0')}м` : `${hrs}ч 00м`;
     }
 
-    function hoursToTimeStr(h) {
-        if (!h) return '';
-        const hrs = Math.floor(h);
-        const mins = Math.round((h - hrs) * 60);
-        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-    }
-
     // ===== Checklist helpers =====
 
     function parseItems(desc) {
@@ -320,7 +313,7 @@ const CalendarModule = (() => {
             </div>
             <div class="cal-detail-card">
                 ${status === 'done'
-                    ? `<div class="cal-detail-time">${entry.hours} ч · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>`
+                    ? `<div class="cal-detail-time">${formatHours(entry.hours)} · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>`
                     : `<div class="cal-detail-plan-label">ПЛАН</div>`}
                 ${tasksHtml ? `<div class="cal-detail-tasks">${tasksHtml}</div>` : ''}
                 ${entry.note ? `<div class="cal-detail-note">📝 ${escapeHtml(entry.note)}</div>` : ''}
@@ -483,6 +476,8 @@ const CalendarModule = (() => {
         const [y, m, d] = ds.split('-').map(Number);
         const dateLabel = `${d} ${App.MONTHS_RU[m - 1]} ${y}`;
         const isEdit = !!existingEntry;
+        const existingH = existingEntry ? Math.floor(existingEntry.hours) : 0;
+        const existingM = existingEntry ? Math.round((existingEntry.hours - Math.floor(existingEntry.hours)) * 60) : 0;
 
         const html = `
         <div class="bs-header">
@@ -505,9 +500,19 @@ const CalendarModule = (() => {
 
         <div class="form-group">
             <label class="form-label">Время работы / Ставка</label>
-            <div style="display:flex;gap:10px">
-                <input type="time" class="form-control" id="cal-hours-time" style="flex:1"
-                    value="${existingEntry ? hoursToTimeStr(existingEntry.hours) : ''}">
+            <div style="display:flex;gap:10px;align-items:center">
+                <div style="display:flex;gap:6px;align-items:center;flex:1.2">
+                    <input type="number" inputmode="numeric" class="form-control" id="cal-hours-h"
+                        min="0" max="24" placeholder="0"
+                        style="width:56px;text-align:center;flex:none;padding-left:4px;padding-right:4px"
+                        value="${existingH || ''}">
+                    <span style="color:var(--text-muted);font-size:14px;white-space:nowrap">ч</span>
+                    <input type="number" inputmode="numeric" class="form-control" id="cal-hours-m"
+                        min="0" max="59" placeholder="0"
+                        style="width:56px;text-align:center;flex:none;padding-left:4px;padding-right:4px"
+                        value="${existingM || ''}">
+                    <span style="color:var(--text-muted);font-size:14px;white-space:nowrap">мин</span>
+                </div>
                 <div class="form-control-with-icon" style="flex:1">
                     <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || App.getHourlyRate()) : App.getHourlyRate()}" placeholder="700.00">
                     <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
@@ -547,12 +552,9 @@ const CalendarModule = (() => {
         });
 
         content.querySelector('#cal-save-btn').addEventListener('click', async () => {
-            const timeVal = content.querySelector('#cal-hours-time').value;
-            let hours = 0;
-            if (timeVal) {
-                const [h, m] = timeVal.split(':').map(Number);
-                hours = h + (m || 0) / 60;
-            }
+            const hVal = Math.max(0, parseInt(content.querySelector('#cal-hours-h').value) || 0);
+            const mVal = Math.min(59, Math.max(0, parseInt(content.querySelector('#cal-hours-m').value) || 0));
+            const hours = hVal + mVal / 60;
             const rate = parseFloat(content.querySelector('#cal-rate').value.replace(',', '.')) || App.getHourlyRate();
             const items = collectChecklistItems(tasksContainer);
             const description = serializeItems(items);
