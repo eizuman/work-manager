@@ -5,6 +5,7 @@ const TasksModule = (() => {
     let tasks = [];
     let tags = [];
     let purchases = [];
+    let scheduledMap = new Map();
 
     // Active filters (Sets for multi-select; empty = show all)
     let filterStatuses = new Set();
@@ -43,6 +44,14 @@ const TasksModule = (() => {
             App.handleError(err, 'Загрузка задач');
             tasks = []; tags = [];
         }
+        try { scheduledMap = await Sheets.getScheduledTaskIds(); } catch (_) { scheduledMap = new Map(); }
+    }
+
+    function formatScheduledBadge(dates) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const future = dates.map(d => new Date(d)).filter(d => d >= today).sort((a,b) => a-b);
+        const ref = future.length ? future[0] : new Date(dates.sort().at(-1));
+        return `${ref.getDate()} ${App.MONTHS_RU[ref.getMonth()]}`;
     }
 
     function getFilteredTasks() {
@@ -191,6 +200,11 @@ const TasksModule = (() => {
         const statusLabels = { new: 'Ожидает', in_progress: 'В работе', done: 'Завершено' };
         const statusCls = { new: 'new', in_progress: 'in_progress', done: 'done' };
 
+        const scheduledDates = scheduledMap.get(task.id);
+        const scheduledBadge = (scheduledDates && scheduledDates.length)
+            ? `<div class="task-scheduled-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${formatScheduledBadge(scheduledDates)}</div>`
+            : '';
+
         return `
         <div class="task-item${isDone ? ' done' : ''}" data-id="${task.id}" draggable="true">
             <div class="task-drag-handle" data-drag-handle>
@@ -206,6 +220,7 @@ const TasksModule = (() => {
             <div class="task-body">
                 <div class="task-title">${escapeHtml(task.title)}</div>
                 ${tagPills ? `<div class="task-tags">${tagPills}</div>` : ''}
+                ${scheduledBadge}
             </div>
             <div class="task-weather${isDone ? ' done' : ''}">${weatherIcon}</div>
             <div class="task-status-badge ${statusCls[task.status] || 'new'}">
@@ -517,6 +532,10 @@ const TasksModule = (() => {
         <button class="btn btn-primary" id="task-save-btn" style="margin-bottom:10px">
             ${isEdit ? 'Сохранить изменения' : 'Создать задачу'}
         </button>
+        ${isEdit && existing.status !== 'done' ? `<button class="btn btn-outline" id="task-to-calendar-btn" style="margin-bottom:10px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            В календарь
+        </button>` : ''}
         ${isEdit ? '<button class="btn btn-danger" id="task-delete-btn">Удалить задачу</button>' : ''}`;
 
         const content = App.showBottomSheet(html);
@@ -694,6 +713,13 @@ const TasksModule = (() => {
             }
         });
 
+        if (isEdit && existing.status !== 'done') {
+            content.querySelector('#task-to-calendar-btn').addEventListener('click', () => {
+                App.hideBottomSheet();
+                setTimeout(() => openScheduleTaskSheet(existing), 320);
+            });
+        }
+
         if (isEdit) {
             content.querySelector('#task-delete-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
@@ -711,6 +737,73 @@ const TasksModule = (() => {
                 }, 320);
             });
         }
+    }
+
+    // ===== Schedule task to calendar =====
+
+    function openScheduleTaskSheet(task) {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">В календарь</span>
+            <div style="width:40px"></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;padding:12px 14px;font-size:14px;color:var(--text-muted)">
+            <span style="color:var(--text-primary);font-weight:500">${escapeHtml(task.title)}</span><br>
+            Задача будет добавлена в список работ выбранного дня
+        </div>
+        <div class="form-group">
+            <label class="form-label">Дата</label>
+            <input type="date" class="form-control" id="schedule-date" value="${todayStr}">
+        </div>
+        <button class="btn btn-primary" id="schedule-confirm-btn">Запланировать</button>`;
+
+        const content = App.showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
+
+        content.querySelector('#schedule-confirm-btn').addEventListener('click', async () => {
+            const ds = content.querySelector('#schedule-date').value;
+            if (!ds) { App.showToast('Выберите дату', 'error'); return; }
+
+            try {
+                const logs = await Sheets.getWorkLogs();
+                const existing = logs.find(l => l.date === ds);
+
+                let description, task_ids, hours, rate, note;
+                if (existing) {
+                    const existingItems = existing.description ? existing.description.split('|').filter(Boolean) : [];
+                    existingItems.push(task.title);
+                    description = existingItems.join('|');
+                    task_ids = [...(existing.task_ids || []), task.id];
+                    hours = existing.hours;
+                    rate = existing.rate;
+                    note = existing.note || '';
+                } else {
+                    description = task.title;
+                    task_ids = [task.id];
+                    hours = 0;
+                    rate = App.getHourlyRate();
+                    note = '';
+                }
+
+                await App.withLoading(() => Sheets.saveWorkLog({ date: ds, hours, rate, description, task_ids, note }));
+
+                if (!scheduledMap.has(task.id)) scheduledMap.set(task.id, []);
+                if (!scheduledMap.get(task.id).includes(ds)) scheduledMap.get(task.id).push(ds);
+
+                App.hideBottomSheet();
+                render();
+                const [, m, d] = ds.split('-').map(Number);
+                App.showToast(`Запланировано на ${d} ${App.MONTHS_RU[m-1]}`);
+            } catch (err) {
+                App.handleError(err, 'Планирование');
+            }
+        });
     }
 
     // ===== Drag-and-drop (touch + mouse) =====

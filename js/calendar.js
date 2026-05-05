@@ -221,6 +221,7 @@ const CalendarModule = (() => {
         const row = document.createElement('div');
         row.className = 'checklist-row';
         row.setAttribute('draggable', 'true');
+        row.dataset.taskId = item.taskId || '';
 
         const handle = document.createElement('div');
         handle.className = 'task-drag-handle';
@@ -286,7 +287,8 @@ const CalendarModule = (() => {
     function collectChecklistItems(cont) {
         return Array.from(cont.querySelectorAll('.checklist-row')).map(row => ({
             checked: row.querySelector('.checklist-cb').classList.contains('checked'),
-            text: row.querySelector('.checklist-input').value
+            text: row.querySelector('.checklist-input').value,
+            taskId: row.dataset.taskId || ''
         }));
     }
 
@@ -458,7 +460,8 @@ const CalendarModule = (() => {
                         hours: entry.hours || 0,
                         rate: entry.rate || App.getHourlyRate(),
                         description: entry.description || '',
-                        note: entry.note || ''
+                        note: entry.note || '',
+                        task_ids: entry.task_ids || []
                     });
                     await Sheets.deleteWorkLog(entry.id);
                 });
@@ -587,10 +590,23 @@ const CalendarModule = (() => {
         <div class="form-group">
             <label class="form-label">Список работ</label>
             <div class="cal-checklist" id="cal-tasks"></div>
-            <button type="button" class="add-checklist-btn" id="cal-add-task">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Добавить пункт
-            </button>
+            <div class="cal-task-picker" id="cal-task-picker" style="display:none">
+                <div class="cal-task-picker-list" id="cal-task-picker-list"></div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <button type="button" class="btn btn-primary" id="cal-picker-add-btn" style="flex:1;padding:8px;font-size:13px">Добавить выбранные</button>
+                    <button type="button" class="btn btn-outline" id="cal-picker-cancel-btn" style="flex:1;padding:8px;font-size:13px">Отмена</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="add-checklist-btn" id="cal-add-task">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Добавить пункт
+                </button>
+                <button type="button" class="add-checklist-btn" id="cal-from-tasks-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Из задач
+                </button>
+            </div>
         </div>
 
         <div class="form-group">
@@ -606,7 +622,11 @@ const CalendarModule = (() => {
 
         // Init checklist
         const tasksContainer = content.querySelector('#cal-tasks');
-        const initialItems = existingEntry ? parseItems(existingEntry.description) : [];
+        const initialItems = existingEntry
+            ? parseItems(existingEntry.description).map((item, i) => ({
+                ...item, taskId: (existingEntry.task_ids || [])[i] || ''
+              }))
+            : [];
         if (initialItems.length === 0) initialItems.push({ checked: false, text: '' });
         initialItems.forEach(item => addChecklistRow(tasksContainer, item));
         bindChecklistDrag(tasksContainer);
@@ -616,6 +636,46 @@ const CalendarModule = (() => {
                 .querySelector('.checklist-input').focus();
         });
 
+        // Task picker
+        content.querySelector('#cal-from-tasks-btn').addEventListener('click', async () => {
+            const picker = content.querySelector('#cal-task-picker');
+            const pickerList = content.querySelector('#cal-task-picker-list');
+            if (picker.style.display !== 'none') { picker.style.display = 'none'; return; }
+            picker.style.display = 'block';
+            pickerList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:6px 0">Загрузка...</div>';
+            try {
+                const allTasks = await Sheets.getTasks();
+                const active = allTasks.filter(t => t.status !== 'done');
+                if (!active.length) {
+                    pickerList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:6px 0">Нет активных задач</div>';
+                    return;
+                }
+                pickerList.innerHTML = active.map(t => `
+                    <label class="cal-task-picker-item" data-task-id="${t.id}">
+                        <input type="checkbox" class="cal-picker-cb" value="${t.id}">
+                        <span>${escapeHtml(t.title)}</span>
+                    </label>`).join('');
+            } catch (e) {
+                pickerList.innerHTML = '<div style="color:var(--red-medium);font-size:13px;padding:6px 0">Ошибка загрузки задач</div>';
+            }
+        });
+
+        content.querySelector('#cal-picker-add-btn').addEventListener('click', () => {
+            content.querySelectorAll('.cal-picker-cb:checked').forEach(cb => {
+                const label = cb.closest('.cal-task-picker-item');
+                addChecklistRow(tasksContainer, {
+                    checked: false,
+                    text: label.querySelector('span').textContent,
+                    taskId: label.dataset.taskId
+                });
+            });
+            content.querySelector('#cal-task-picker').style.display = 'none';
+        });
+
+        content.querySelector('#cal-picker-cancel-btn').addEventListener('click', () => {
+            content.querySelector('#cal-task-picker').style.display = 'none';
+        });
+
         content.querySelector('#cal-save-btn').addEventListener('click', async () => {
             const hVal = Math.max(0, parseInt(content.querySelector('#cal-hours-h').value) || 0);
             const mVal = Math.min(59, Math.max(0, parseInt(content.querySelector('#cal-hours-m').value) || 0));
@@ -623,6 +683,7 @@ const CalendarModule = (() => {
             const rate = parseFloat(content.querySelector('#cal-rate').value.replace(',', '.')) || App.getHourlyRate();
             const items = collectChecklistItems(tasksContainer);
             const description = serializeItems(items);
+            const task_ids = items.map(i => i.taskId || '');
 
             if (!hours && !description.trim()) {
                 App.showToast('Добавьте список работ или укажите часы', 'error');
@@ -631,7 +692,7 @@ const CalendarModule = (() => {
 
             try {
                 const saved = await App.withLoading(() => Sheets.saveWorkLog({
-                    date: ds, hours, rate, description,
+                    date: ds, hours, rate, description, task_ids,
                     note: content.querySelector('#cal-note').value.trim()
                 }));
                 const idx = workLogs.findIndex(w => w.date === ds);

@@ -142,7 +142,8 @@ function nowIso() {
 }
 
 // ===== work_log =====
-// Columns: id(0) | date(1) | hours(2) | description(3) | amount(4) | note(5) | timestamp(6) | rate(7)
+// Columns: id(0) | date(1) | hours(2) | description(3) | amount(4) | note(5) | timestamp(6) | rate(7) | task_ids(8)
+// task_ids: pipe-separated list, one entry per checklist item (empty string if not linked to a task)
 
 function _rowToWorkLog(row) {
     const v = row.values;
@@ -155,6 +156,7 @@ function _rowToWorkLog(row) {
         note: v[5] || '',
         timestamp: v[6] || '',
         rate: parseFloat(v[7]) || 700,
+        task_ids: v[8] ? String(v[8]).split('|') : [],
         _rowIndex: row.rowIndex
     };
 }
@@ -168,7 +170,8 @@ function _workLogToRow(entry) {
         entry.amount,
         entry.note,
         entry.timestamp,
-        entry.rate || 700
+        entry.rate || 700,
+        (entry.task_ids || []).join('|')
     ];
 }
 
@@ -190,7 +193,8 @@ async function saveWorkLog(data) {
         amount: (parseFloat(data.hours) || 0) * hourlyRate,
         note: data.note || '',
         timestamp: nowIso(),
-        rate: hourlyRate
+        rate: hourlyRate,
+        task_ids: data.task_ids || (found ? found.task_ids : []) || []
     };
 
     if (found) {
@@ -569,6 +573,20 @@ async function deletePurchase(id) {
     await deleteRow('purchases', found._rowIndex);
 }
 
+// Returns Map<task_id, date[]> — which dates each task is scheduled on
+async function getScheduledTaskIds() {
+    const logs = await getWorkLogs();
+    const map = new Map();
+    logs.forEach(log => {
+        (log.task_ids || []).forEach(tid => {
+            if (!tid) return;
+            if (!map.has(tid)) map.set(tid, []);
+            map.get(tid).push(log.date);
+        });
+    });
+    return map;
+}
+
 // ===== settings =====
 // Sheet: settings | Columns: key(0) | value(1)
 
@@ -609,7 +627,7 @@ async function saveSetting(key, value) {
 
 // Export to window
 window.Sheets = {
-    getWorkLogs, saveWorkLog, deleteWorkLog,
+    getWorkLogs, saveWorkLog, deleteWorkLog, getScheduledTaskIds,
     getFinanceEntries, addFinanceEntry, updateFinanceEntry, deleteFinanceEntry,
     getTasks, addTask, updateTask, deleteTask, reorderTasks,
     getTags, addTag, updateTag, deleteTag,
