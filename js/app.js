@@ -162,6 +162,9 @@ function setHourlyRate(val) {
 
 function openSettings() {
     const rate = getHourlyRate();
+    const lastBackup = localStorage.getItem('last_auto_backup');
+    const lastBackupLabel = lastBackup || 'нет';
+
     const html = `
     <div class="bs-header">
         <button class="icon-btn" id="bs-close-btn">
@@ -171,7 +174,7 @@ function openSettings() {
         <div style="width:40px"></div>
     </div>
     <div class="card" style="margin-bottom:16px">
-        <div class="form-group" style="margin-bottom:0">
+        <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Почасовая ставка по умолчанию</label>
             <div class="form-control-with-icon">
                 <input type="text" inputmode="decimal" class="form-control" id="settings-rate" value="${rate}" placeholder="700.00">
@@ -179,9 +182,10 @@ function openSettings() {
             </div>
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня.</div>
         </div>
+        <button class="btn btn-primary" id="settings-save-btn">Сохранить ставку</button>
     </div>
-    <div class="card" style="margin-bottom:20px">
-        <div class="form-group" style="margin-bottom:0">
+    <div class="card" style="margin-bottom:16px">
+        <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Теги задач</label>
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Создание, переименование и удаление тегов</div>
             <button class="btn btn-outline" id="settings-tags-btn" style="width:auto;padding:8px 16px;font-size:14px">
@@ -190,10 +194,30 @@ function openSettings() {
             </button>
         </div>
     </div>
-    <button class="btn btn-primary" id="settings-save-btn">Сохранить</button>`;
+    <div class="card" style="margin-bottom:20px">
+        <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Бэкап данных</label>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Последний авто-бэкап: <span id="settings-last-backup">${lastBackupLabel}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-outline" id="settings-backup-now-btn" style="font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Создать бэкап сейчас
+            </button>
+            <button class="btn btn-outline" id="settings-backup-download-btn" style="font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Скачать JSON на компьютер
+            </button>
+            <button class="btn btn-outline" id="settings-backup-restore-btn" style="font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                Восстановить из бэкапа
+            </button>
+        </div>
+    </div>`;
 
     const content = showBottomSheet(html);
     content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+
     content.querySelector('#settings-save-btn').addEventListener('click', async () => {
         const val = parseFloat(content.querySelector('#settings-rate').value.replace(',', '.'));
         if (!val || val <= 0) { showToast('Укажите ставку', 'error'); return; }
@@ -207,9 +231,113 @@ function openSettings() {
             showToast('Сохранено локально. Ошибка синхронизации: ' + (e.message || e), 'error');
         }
     });
+
     content.querySelector('#settings-tags-btn').addEventListener('click', () => {
         hideBottomSheet();
         setTimeout(() => TasksModule.openTagsManageSheet(), 320);
+    });
+
+    content.querySelector('#settings-backup-now-btn').addEventListener('click', async () => {
+        const btn = content.querySelector('#settings-backup-now-btn');
+        btn.disabled = true;
+        btn.textContent = 'Создание бэкапа...';
+        try {
+            const result = await withLoading(() => Sheets.createBackup());
+            localStorage.setItem('last_auto_backup', result.date);
+            content.querySelector('#settings-last-backup').textContent = result.date;
+            showToast(`Бэкап создан: ${result.title}`);
+        } catch (e) {
+            showToast('Ошибка создания бэкапа: ' + (e.message || e), 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Создать бэкап сейчас`;
+        }
+    });
+
+    content.querySelector('#settings-backup-download-btn').addEventListener('click', async () => {
+        try {
+            const data = await withLoading(() => Sheets.exportToJson());
+            const now = new Date();
+            const pad = n => String(n).padStart(2,'0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `workmanager_backup_${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Файл скачан');
+        } catch (e) {
+            showToast('Ошибка экспорта: ' + (e.message || e), 'error');
+        }
+    });
+
+    content.querySelector('#settings-backup-restore-btn').addEventListener('click', () => {
+        hideBottomSheet();
+        setTimeout(() => openRestoreSheet(), 320);
+    });
+}
+
+function openRestoreSheet() {
+    const html = `
+    <div class="bs-header">
+        <button class="icon-btn" id="bs-close-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <span class="bs-title">Восстановить из бэкапа</span>
+        <div style="width:40px"></div>
+    </div>
+    <div id="restore-list-content">
+        <div style="color:var(--text-muted);font-size:14px;padding:12px 0">Загрузка списка бэкапов...</div>
+    </div>`;
+
+    const content = showBottomSheet(html);
+    content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+
+    Sheets.listBackups().then(backups => {
+        const listEl = content.querySelector('#restore-list-content');
+        if (!backups.length) {
+            listEl.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:12px 0">Бэкапы не найдены. Создайте первый бэкап в настройках.</div>';
+            return;
+        }
+        listEl.innerHTML = backups.map(b => `
+            <div class="backup-list-item" data-id="${b.id}" data-title="${b.title}">
+                <div class="backup-list-date">${b.date}${b.time ? ' ' + b.time : ''}</div>
+                <div class="backup-list-name">${b.title}</div>
+                <button class="btn btn-outline backup-restore-btn" data-id="${b.id}" data-title="${b.title}"
+                    style="margin-top:8px;font-size:13px;padding:7px 14px">
+                    Восстановить
+                </button>
+            </div>`).join('');
+
+        listEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.backup-restore-btn');
+            if (!btn) return;
+            const backupId = btn.dataset.id;
+            const backupTitle = btn.dataset.title;
+            hideBottomSheet();
+            setTimeout(() => {
+                showConfirmDialog(
+                    `Восстановить из бэкапа «${backupTitle}»?\n\nВсе текущие данные (работы, финансы, задачи, закупки) будут заменены. Это действие необратимо.`,
+                    async () => {
+                        try {
+                            await withLoading(() => Sheets.restoreBackup(backupId));
+                            showToast('Данные восстановлены. Перезагрузка...');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } catch (e) {
+                            showToast('Ошибка восстановления: ' + (e.message || e), 'error');
+                        }
+                    },
+                    'Восстановить'
+                );
+            }, 320);
+        });
+    }).catch(() => {
+        content.querySelector('#restore-list-content').innerHTML =
+            '<div style="color:var(--red-medium);font-size:14px;padding:12px 0">Ошибка загрузки списка бэкапов</div>';
     });
 }
 
@@ -265,6 +393,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (e) {
         console.error('Settings sync failed:', e);
+    }
+
+    // Auto daily backup (silent, background)
+    const _today = new Date().toISOString().split('T')[0];
+    if (localStorage.getItem('last_auto_backup') !== _today) {
+        Sheets.createBackup()
+            .then(r => localStorage.setItem('last_auto_backup', r.date))
+            .catch(e => console.warn('Auto backup failed:', e));
     }
 
     // Bottom nav click (mobile)

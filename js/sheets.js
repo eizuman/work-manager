@@ -573,6 +573,118 @@ async function deletePurchase(id) {
     await deleteRow('purchases', found._rowIndex);
 }
 
+// ===== Backup =====
+// Uses Sheets API only (no Drive scope). Creates a full copy as a new spreadsheet.
+
+const _BACKUP_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases', 'settings'];
+
+async function _readSheetRaw(spreadsheetId, sheetName) {
+    try {
+        const range = encodeURIComponent(`${sheetName}!A:Z`);
+        const url = `${SHEETS_CONFIG.API_BASE}/${spreadsheetId}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`;
+        const data = await _apiRequest(url);
+        return (data && data.values) ? data.values : [];
+    } catch (_) { return []; }
+}
+
+async function createBackup() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const title = `WorkManager Backup ${dateStr} ${timeStr}`;
+
+    // 1. Read all sheets from main spreadsheet
+    const sheetData = {};
+    for (const sheet of _BACKUP_SHEETS) {
+        sheetData[sheet] = await _readSheetRaw(SHEETS_CONFIG.SPREADSHEET_ID, sheet);
+    }
+
+    // 2. Create new spreadsheet with all sheet names
+    const newSS = await _apiRequest(SHEETS_CONFIG.API_BASE, {
+        method: 'POST',
+        body: JSON.stringify({
+            properties: { title },
+            sheets: _BACKUP_SHEETS.map(name => ({ properties: { title: name } }))
+        })
+    });
+    const newId = newSS.spreadsheetId;
+
+    // 3. Write all data to new spreadsheet in one batch request
+    const batchData = _BACKUP_SHEETS
+        .filter(s => sheetData[s].length > 0)
+        .map(s => ({ range: `${s}!A1`, values: sheetData[s] }));
+
+    if (batchData.length > 0) {
+        await _apiRequest(`${SHEETS_CONFIG.API_BASE}/${newId}/values:batchUpdate`, {
+            method: 'POST',
+            body: JSON.stringify({ valueInputOption: 'RAW', data: batchData })
+        });
+    }
+
+    // 4. Save backup entry to settings (keep last 10)
+    const settings = await getSettings();
+    const list = JSON.parse(settings.backups || '[]');
+    list.unshift({ id: newId, date: dateStr, time: timeStr, title });
+    await saveSetting('backups', JSON.stringify(list.slice(0, 10)));
+
+    return { id: newId, date: dateStr, time: timeStr, title };
+}
+
+async function listBackups() {
+    try {
+        const settings = await getSettings();
+        return JSON.parse(settings.backups || '[]');
+    } catch (_) { return []; }
+}
+
+async function restoreBackup(backupId) {
+    const DATA_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases'];
+
+    // 1. Read all data from backup spreadsheet
+    const sheetData = {};
+    for (const sheet of DATA_SHEETS) {
+        sheetData[sheet] = await _readSheetRaw(backupId, sheet);
+    }
+
+    // Also read hourly_rate from backup settings
+    let backupRate = null;
+    try {
+        const settingsRows = await _readSheetRaw(backupId, 'settings');
+        const rateRow = settingsRows.find(r => String(r[0]) === 'hourly_rate');
+        if (rateRow) backupRate = rateRow[1];
+    } catch (_) {}
+
+    // 2. Clear and rewrite each data sheet
+    for (const sheet of DATA_SHEETS) {
+        const clearRange = encodeURIComponent(`${sheet}!A:Z`);
+        await _apiRequest(
+            `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${clearRange}:clear`,
+            { method: 'POST', body: '{}' }
+        );
+        if (sheetData[sheet].length > 0) {
+            const writeRange = encodeURIComponent(`${sheet}!A1`);
+            await _apiRequest(
+                `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${writeRange}?valueInputOption=RAW`,
+                { method: 'PUT', body: JSON.stringify({ values: sheetData[sheet] }) }
+            );
+        }
+    }
+
+    // 3. Restore hourly_rate if found in backup (backups list stays untouched)
+    if (backupRate != null) await saveSetting('hourly_rate', backupRate);
+
+    invalidateCache();
+}
+
+async function exportToJson() {
+    const data = {};
+    for (const sheet of _BACKUP_SHEETS) {
+        data[sheet] = await _readSheetRaw(SHEETS_CONFIG.SPREADSHEET_ID, sheet);
+    }
+    return data;
+}
+
 // Returns Map<task_id, date[]> — which dates each task is scheduled on
 async function getScheduledTaskIds() {
     const logs = await getWorkLogs();
@@ -628,6 +740,7 @@ async function saveSetting(key, value) {
 // Export to window
 window.Sheets = {
     getWorkLogs, saveWorkLog, deleteWorkLog, getScheduledTaskIds,
+    createBackup, listBackups, restoreBackup, exportToJson,
     getFinanceEntries, addFinanceEntry, updateFinanceEntry, deleteFinanceEntry,
     getTasks, addTask, updateTask, deleteTask, reorderTasks,
     getTags, addTag, updateTag, deleteTag,
