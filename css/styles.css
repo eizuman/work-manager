@@ -2069,6 +2069,14 @@ canvas {
 .task-status-badge.done { color: var(--text-muted); }
 .task-status-badge.overdue { color: var(--red-medium); }
 
+.task-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 /* ===== Finance table desktop ===== */
 .tx-table-head { display: none; }
 

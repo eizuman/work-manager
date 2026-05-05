@@ -220,11 +220,13 @@ const TasksModule = (() => {
             <div class="task-body">
                 <div class="task-title">${escapeHtml(task.title)}</div>
                 ${tagPills ? `<div class="task-tags">${tagPills}</div>` : ''}
-                ${scheduledBadge}
             </div>
             <div class="task-weather${isDone ? ' done' : ''}">${weatherIcon}</div>
-            <div class="task-status-badge ${statusCls[task.status] || 'new'}">
-                ${statusLabels[task.status] || task.status}
+            <div class="task-right">
+                <div class="task-status-badge ${statusCls[task.status] || 'new'}">
+                    ${statusLabels[task.status] || task.status}
+                </div>
+                ${scheduledBadge}
             </div>
             <div class="task-actions">
                 <button class="task-action-btn edit-task" data-id="${task.id}" aria-label="Редактировать">
