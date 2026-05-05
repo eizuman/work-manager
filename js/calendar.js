@@ -514,7 +514,7 @@ const CalendarModule = (() => {
                     <span style="color:var(--text-muted);font-size:14px;white-space:nowrap">мин</span>
                 </div>
                 <div class="form-control-with-icon" style="flex:1">
-                    <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${existingEntry ? (existingEntry.rate || App.getHourlyRate()) : App.getHourlyRate()}" placeholder="700.00">
+                    <input type="text" inputmode="decimal" class="form-control" id="cal-rate" value="${(existingEntry && existingEntry.hours) ? (existingEntry.rate || App.getHourlyRate()) : App.getHourlyRate()}" placeholder="700.00">
                     <span class="form-control-icon" style="font-size:12px;font-weight:600;color:var(--text-muted)">₽/ч</span>
                 </div>
             </div>
