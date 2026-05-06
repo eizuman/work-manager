@@ -9,6 +9,7 @@ const MODULES = {
 };
 
 let currentModule = null;
+let _appInitialized = false;
 
 // ===== Auth guard =====
 function checkAuth() {
@@ -174,6 +175,245 @@ function _escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ===== Object management =====
+
+function getObjects() {
+    return JSON.parse(localStorage.getItem('objects') || '[]');
+}
+
+function saveObjects(objects) {
+    localStorage.setItem('objects', JSON.stringify(objects));
+}
+
+function getActiveObject() {
+    const id = localStorage.getItem('activeObjectId');
+    return getObjects().find(o => o.id === id) || null;
+}
+
+function updateObjectDisplay() {
+    const obj = getActiveObject();
+    const name = obj ? obj.name : '—';
+    const headerName = document.getElementById('header-object-name');
+    const sidebarName = document.getElementById('sidebar-object-name');
+    if (headerName) headerName.textContent = name;
+    if (sidebarName) sidebarName.textContent = name;
+}
+
+function migrateObjects() {
+    if (getObjects().length > 0) return;
+    const obj = {
+        id: Sheets.generatePrefixedId('obj'),
+        name: 'Основной объект',
+        sheetId: Sheets.LEGACY_SPREADSHEET_ID,
+        createdAt: new Date().toISOString()
+    };
+    saveObjects([obj]);
+    localStorage.setItem('activeObjectId', obj.id);
+}
+
+// ===== Object select overlay =====
+
+function renderObjectSelectOverlay() {
+    const objects = getObjects();
+    const listEl = document.getElementById('object-select-list');
+    const titleEl = document.getElementById('object-select-title');
+    const addFormEl = document.getElementById('object-add-form');
+    const addBtnEl = document.getElementById('object-select-add-btn');
+
+    addFormEl.classList.add('hidden');
+    addBtnEl.classList.remove('hidden');
+    document.getElementById('new-object-name').value = '';
+    document.getElementById('new-object-sheetid').value = '';
+
+    if (objects.length === 0) {
+        titleEl.textContent = 'Добавьте первый объект';
+        listEl.innerHTML = '';
+        addFormEl.classList.remove('hidden');
+        addBtnEl.classList.add('hidden');
+    } else {
+        titleEl.textContent = 'Выберите объект';
+        const activeId = localStorage.getItem('activeObjectId');
+        listEl.innerHTML = objects.map(obj => `
+            <button class="object-select-item${obj.id === activeId ? ' active' : ''}" data-id="${_escHtml(obj.id)}">
+                <span class="object-select-item-name">${_escHtml(obj.name)}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        `).join('');
+
+        listEl.querySelectorAll('.object-select-item').forEach(btn => {
+            btn.addEventListener('click', () => _selectObjectAndInit(btn.dataset.id));
+        });
+    }
+}
+
+function showObjectSelectOverlay() {
+    renderObjectSelectOverlay();
+    document.getElementById('object-select-overlay').classList.remove('hidden');
+
+    document.getElementById('object-select-add-btn').onclick = () => {
+        document.getElementById('object-add-form').classList.remove('hidden');
+        document.getElementById('object-select-add-btn').classList.add('hidden');
+        document.getElementById('new-object-name').focus();
+    };
+
+    document.getElementById('new-object-save-btn').onclick = async () => {
+        const name = document.getElementById('new-object-name').value.trim();
+        const sheetId = document.getElementById('new-object-sheetid').value.trim();
+        if (!name) { showToast('Введите название объекта', 'error'); return; }
+        if (!sheetId) { showToast('Введите Google Sheet ID', 'error'); return; }
+
+        const obj = {
+            id: Sheets.generatePrefixedId('obj'),
+            name,
+            sheetId,
+            createdAt: new Date().toISOString()
+        };
+        const objects = getObjects();
+        objects.push(obj);
+        saveObjects(objects);
+        _selectObjectAndInit(obj.id);
+    };
+
+    document.getElementById('new-object-cancel-btn').onclick = () => {
+        if (getObjects().length === 0) return;
+        document.getElementById('object-add-form').classList.add('hidden');
+        document.getElementById('object-select-add-btn').classList.remove('hidden');
+    };
+}
+
+function hideObjectSelectOverlay() {
+    document.getElementById('object-select-overlay').classList.add('hidden');
+}
+
+async function _selectObjectAndInit(id) {
+    localStorage.setItem('activeObjectId', id);
+    Sheets.invalidateCache();
+    updateObjectDisplay();
+    hideObjectSelectOverlay();
+
+    if (_appInitialized) {
+        // Re-sync settings for the new object
+        try {
+            const settings = await Sheets.getSettings();
+            if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
+            if (settings.object_code != null) setObjectCode(String(settings.object_code));
+        } catch (e) {
+            console.error('Settings re-sync failed:', e);
+        }
+        // Reload current module
+        const mod = currentModule;
+        currentModule = null;
+        switchModule(mod);
+    } else {
+        await _initAppUI();
+    }
+}
+
+// ===== App initialization =====
+
+async function _initAppUI() {
+    if (_appInitialized) return;
+    _appInitialized = true;
+
+    // Sync settings from Sheets → localStorage
+    try {
+        const settings = await Sheets.getSettings();
+        if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
+        if (settings.object_code != null) setObjectCode(String(settings.object_code));
+    } catch (e) {
+        console.error('Settings sync failed:', e);
+    }
+
+    updateObjectDisplay();
+
+    // Auto daily backup (silent, background)
+    const _today = new Date().toISOString().split('T')[0];
+    if (localStorage.getItem('last_auto_backup') !== _today) {
+        Sheets.createBackup()
+            .then(r => localStorage.setItem('last_auto_backup', r.date))
+            .catch(e => console.warn('Auto backup failed:', e));
+    }
+
+    // Bottom nav click (mobile)
+    document.getElementById('bottom-nav').addEventListener('click', (e) => {
+        const btn = e.target.closest('.nav-item[data-module]');
+        if (btn) switchModule(btn.dataset.module);
+    });
+
+    // Sidebar nav click (desktop)
+    document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sidebar-nav-item[data-module]');
+        if (btn) switchModule(btn.dataset.module);
+    });
+
+    // Object switcher — mobile header
+    document.getElementById('header-object-btn').addEventListener('click', showObjectSelectOverlay);
+
+    // Object switcher — desktop sidebar
+    document.getElementById('sidebar-object-switch').addEventListener('click', showObjectSelectOverlay);
+
+    // Close bottom sheet on overlay click
+    document.getElementById('bs-overlay').addEventListener('click', hideBottomSheet);
+
+    // Swipe down to close bottom sheet
+    let bsTouchStartY = 0;
+    const sheet = document.getElementById('bottom-sheet');
+    sheet.addEventListener('touchstart', (e) => {
+        bsTouchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    sheet.addEventListener('touchend', (e) => {
+        const dy = e.changedTouches[0].clientY - bsTouchStartY;
+        if (dy > 80) hideBottomSheet();
+    }, { passive: true });
+
+    // Settings button (sidebar)
+    document.querySelector('.sidebar-settings').addEventListener('click', openSettings);
+
+    // Burger menu (mobile)
+    document.getElementById('menu-btn').addEventListener('click', () => {
+        const NAV_ITEMS = [
+            { id: 'calendar',  label: 'Календарь',  svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+            { id: 'finance',   label: 'Финансы',    svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="16" r="2"/></svg>' },
+            { id: 'tasks',     label: 'Задачи',     svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' },
+            { id: 'purchases', label: 'Закупки',    svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
+            { id: 'stats',     label: 'Статистика', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+        ];
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Меню</span>
+            <div style="width:40px"></div>
+        </div>
+        <nav class="nav-sheet">
+            ${NAV_ITEMS.map(m => `<button class="nav-sheet-item${currentModule === m.id ? ' active' : ''}" data-module="${m.id}">${m.svg} ${m.label}</button>`).join('')}
+        </nav>
+        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+            <button class="nav-sheet-item" id="burger-settings-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Настройки
+            </button>
+        </div>`;
+        const content = showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+        content.querySelector('.nav-sheet').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav-sheet-item[data-module]');
+            if (!btn) return;
+            hideBottomSheet();
+            setTimeout(() => switchModule(btn.dataset.module), 50);
+        });
+        content.querySelector('#burger-settings-btn').addEventListener('click', () => {
+            hideBottomSheet();
+            setTimeout(() => openSettings(), 320);
+        });
+    });
+
+    // Load default module
+    switchModule('calendar');
+}
+
+// ===== Settings =====
 function openSettings() {
     const rate = getHourlyRate();
     const lastBackup = localStorage.getItem('last_auto_backup');
@@ -186,6 +426,16 @@ function openSettings() {
         </button>
         <span class="bs-title">Настройки</span>
         <div style="width:40px"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+        <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Объекты</label>
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Добавление, переименование и удаление объектов</div>
+            <button class="btn btn-outline" id="settings-objects-btn" style="width:auto;padding:8px 16px;font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Управление объектами
+            </button>
+        </div>
     </div>
     <div class="card" style="margin-bottom:16px">
         <div class="form-group" style="margin-bottom:12px">
@@ -249,6 +499,11 @@ function openSettings() {
 
     const content = showBottomSheet(html);
     content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+
+    content.querySelector('#settings-objects-btn').addEventListener('click', () => {
+        hideBottomSheet();
+        setTimeout(() => openObjectsManageSheet(), 320);
+    });
 
     content.querySelector('#settings-save-btn').addEventListener('click', async () => {
         const val = parseFloat(content.querySelector('#settings-rate').value.replace(',', '.'));
@@ -329,6 +584,162 @@ function openSettings() {
         hideBottomSheet();
         setTimeout(() => openRestoreSheet(), 320);
     });
+}
+
+// ===== Objects management sheet =====
+
+function openObjectsManageSheet() {
+    let objects = getObjects();
+
+    const CLOSE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    const EDIT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+
+    function renderListHtml() {
+        const activeId = localStorage.getItem('activeObjectId');
+        if (objects.length === 0) {
+            return '<div style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:14px">Нет объектов</div>';
+        }
+        return objects.map(obj => `
+            <div class="worker-item" data-id="${_escHtml(obj.id)}">
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;font-size:15px;color:var(--text-primary);display:flex;align-items:center;gap:6px">
+                        ${_escHtml(obj.name)}
+                        ${obj.id === activeId ? '<span style="font-size:10px;font-weight:600;background:var(--green-pale);color:var(--green-dark);border-radius:4px;padding:1px 6px;">активный</span>' : ''}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px">...${_escHtml(obj.sheetId.slice(-12))}</div>
+                </div>
+                <button class="icon-btn obj-edit-btn" data-id="${_escHtml(obj.id)}" title="Редактировать">${EDIT_SVG}</button>
+            </div>
+        `).join('');
+    }
+
+    function buildHtml() {
+        return `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">${CLOSE_SVG}</button>
+            <span class="bs-title">Объекты</span>
+            <div style="width:40px"></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+            <label class="form-label" style="margin-bottom:8px">Добавить объект</label>
+            <input type="text" class="form-control" id="new-obj-name" placeholder="Название объекта" autocomplete="off" style="margin-bottom:8px">
+            <input type="text" class="form-control" id="new-obj-sheetid" placeholder="Google Sheet ID" autocomplete="off" style="margin-bottom:10px">
+            <button class="btn btn-primary" id="add-obj-btn">Добавить объект</button>
+        </div>
+        <div id="objects-list">${renderListHtml()}</div>`;
+    }
+
+    const content = showBottomSheet(buildHtml());
+
+    function rebind() {
+        content.querySelector('#bs-close-btn').onclick = hideBottomSheet;
+
+        content.querySelector('#add-obj-btn').onclick = () => {
+            const name = content.querySelector('#new-obj-name').value.trim();
+            const sheetId = content.querySelector('#new-obj-sheetid').value.trim();
+            if (!name) { showToast('Введите название', 'error'); return; }
+            if (!sheetId) { showToast('Введите Sheet ID', 'error'); return; }
+
+            const obj = {
+                id: Sheets.generatePrefixedId('obj'),
+                name,
+                sheetId,
+                createdAt: new Date().toISOString()
+            };
+            objects.push(obj);
+            saveObjects(objects);
+            content.querySelector('#new-obj-name').value = '';
+            content.querySelector('#new-obj-sheetid').value = '';
+            content.querySelector('#objects-list').innerHTML = renderListHtml();
+            bindEditBtns();
+            showToast('Объект добавлен');
+        };
+
+        bindEditBtns();
+    }
+
+    function bindEditBtns() {
+        content.querySelectorAll('.obj-edit-btn').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.dataset.id;
+                const obj = objects.find(o => o.id === id);
+                if (obj) openEditObjectSheet(obj);
+            };
+        });
+    }
+
+    function openEditObjectSheet(obj) {
+        hideBottomSheet();
+        setTimeout(() => {
+            const activeId = localStorage.getItem('activeObjectId');
+            const isActive = obj.id === activeId;
+            const isOnly = objects.length === 1;
+            const canDelete = !isActive && !isOnly;
+            const deleteLabel = isActive
+                ? 'Нельзя удалить активный объект'
+                : isOnly
+                    ? 'Нельзя удалить единственный объект'
+                    : 'Удалить объект';
+
+            const html = `
+            <div class="bs-header">
+                <button class="icon-btn" id="bs-close-btn">${CLOSE_SVG}</button>
+                <span class="bs-title">Редактировать объект</span>
+                <div style="width:40px"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Название</label>
+                <input type="text" class="form-control" id="edit-obj-name" value="${_escHtml(obj.name)}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Google Sheet ID</label>
+                <input type="text" class="form-control" id="edit-obj-sheetid" value="${_escHtml(obj.sheetId)}">
+            </div>
+            <button class="btn btn-primary" id="edit-obj-save" style="margin-bottom:10px">Сохранить</button>
+            <button class="btn btn-danger" id="edit-obj-delete" ${canDelete ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'}>${deleteLabel}</button>`;
+
+            const c = showBottomSheet(html);
+            c.querySelector('#bs-close-btn').onclick = () => {
+                hideBottomSheet();
+                setTimeout(() => openObjectsManageSheet(), 320);
+            };
+            c.querySelector('#edit-obj-name').focus();
+
+            c.querySelector('#edit-obj-save').onclick = () => {
+                const name = c.querySelector('#edit-obj-name').value.trim();
+                const sheetId = c.querySelector('#edit-obj-sheetid').value.trim();
+                if (!name) { showToast('Введите название', 'error'); return; }
+                if (!sheetId) { showToast('Введите Sheet ID', 'error'); return; }
+
+                const o = objects.find(o => o.id === obj.id);
+                if (o) { o.name = name; o.sheetId = sheetId; }
+                saveObjects(objects);
+                if (isActive) {
+                    Sheets.invalidateCache();
+                    updateObjectDisplay();
+                }
+                hideBottomSheet();
+                showToast('Объект обновлён');
+                setTimeout(() => openObjectsManageSheet(), 320);
+            };
+
+            if (canDelete) {
+                c.querySelector('#edit-obj-delete').onclick = () => {
+                    hideBottomSheet();
+                    setTimeout(() => {
+                        showConfirmDialog(`Удалить объект «${obj.name}»?`, () => {
+                            objects = objects.filter(o => o.id !== obj.id);
+                            saveObjects(objects);
+                            showToast('Объект удалён');
+                            setTimeout(() => openObjectsManageSheet(), 320);
+                        });
+                    }, 320);
+                };
+            }
+        }, 320);
+    }
+
+    rebind();
 }
 
 async function openWorkersManageSheet() {
@@ -558,92 +969,24 @@ window.App = {
 document.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
 
-    // Sync settings from Sheets → localStorage
-    try {
-        const settings = await Sheets.getSettings();
-        if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
-        if (settings.object_code != null) setObjectCode(String(settings.object_code));
-    } catch (e) {
-        console.error('Settings sync failed:', e);
+    // Migration: ensure objects array is populated
+    migrateObjects();
+
+    const objects = getObjects();
+
+    if (objects.length === 0) {
+        // Shouldn't happen after migration, but show create screen defensively
+        showObjectSelectOverlay();
+        return;
     }
 
-    // Auto daily backup (silent, background)
-    const _today = new Date().toISOString().split('T')[0];
-    if (localStorage.getItem('last_auto_backup') !== _today) {
-        Sheets.createBackup()
-            .then(r => localStorage.setItem('last_auto_backup', r.date))
-            .catch(e => console.warn('Auto backup failed:', e));
+    if (objects.length === 1) {
+        // Auto-select single object
+        localStorage.setItem('activeObjectId', objects[0].id);
+        await _initAppUI();
+        return;
     }
 
-    // Bottom nav click (mobile)
-    document.getElementById('bottom-nav').addEventListener('click', (e) => {
-        const btn = e.target.closest('.nav-item[data-module]');
-        if (btn) switchModule(btn.dataset.module);
-    });
-
-    // Sidebar nav click (desktop)
-    document.getElementById('sidebar-nav').addEventListener('click', (e) => {
-        const btn = e.target.closest('.sidebar-nav-item[data-module]');
-        if (btn) switchModule(btn.dataset.module);
-    });
-
-    // Close bottom sheet on overlay click
-    document.getElementById('bs-overlay').addEventListener('click', hideBottomSheet);
-
-    // Swipe down to close bottom sheet
-    let bsTouchStartY = 0;
-    const sheet = document.getElementById('bottom-sheet');
-    sheet.addEventListener('touchstart', (e) => {
-        bsTouchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    sheet.addEventListener('touchend', (e) => {
-        const dy = e.changedTouches[0].clientY - bsTouchStartY;
-        if (dy > 80) hideBottomSheet();
-    }, { passive: true });
-
-    // Settings button (sidebar)
-    document.querySelector('.sidebar-settings').addEventListener('click', openSettings);
-
-    // Burger menu (mobile)
-    document.getElementById('menu-btn').addEventListener('click', () => {
-        const NAV_ITEMS = [
-            { id: 'calendar',  label: 'Календарь',  svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
-            { id: 'finance',   label: 'Финансы',    svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="16" r="2"/></svg>' },
-            { id: 'tasks',     label: 'Задачи',     svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' },
-            { id: 'purchases', label: 'Закупки',    svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
-            { id: 'stats',     label: 'Статистика', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
-        ];
-        const html = `
-        <div class="bs-header">
-            <button class="icon-btn" id="bs-close-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-            <span class="bs-title">Меню</span>
-            <div style="width:40px"></div>
-        </div>
-        <nav class="nav-sheet">
-            ${NAV_ITEMS.map(m => `<button class="nav-sheet-item${currentModule === m.id ? ' active' : ''}" data-module="${m.id}">${m.svg} ${m.label}</button>`).join('')}
-        </nav>
-        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
-            <button class="nav-sheet-item" id="burger-settings-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                Настройки
-            </button>
-        </div>`;
-        const content = showBottomSheet(html);
-        content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
-        content.querySelector('.nav-sheet').addEventListener('click', (e) => {
-            const btn = e.target.closest('.nav-sheet-item[data-module]');
-            if (!btn) return;
-            hideBottomSheet();
-            setTimeout(() => switchModule(btn.dataset.module), 50);
-        });
-        content.querySelector('#burger-settings-btn').addEventListener('click', () => {
-            hideBottomSheet();
-            setTimeout(() => openSettings(), 320);
-        });
-    });
-
-    // Load default module
-    switchModule('calendar');
+    // Multiple objects — show selection screen every session
+    showObjectSelectOverlay();
 });

@@ -1,9 +1,23 @@
 // Google Sheets API module — single source of truth for all data operations
 
+const LEGACY_SPREADSHEET_ID = '1_WLXdEY9-IH34QzvmV6UYWikv6lEqcUJQwLHm6CBQv0';
+
 const SHEETS_CONFIG = {
-    SPREADSHEET_ID: '1_WLXdEY9-IH34QzvmV6UYWikv6lEqcUJQwLHm6CBQv0',
     API_BASE: 'https://sheets.googleapis.com/v4/spreadsheets'
 };
+
+function getActiveSheetId() {
+    const id = localStorage.getItem('activeObjectId');
+    const objects = JSON.parse(localStorage.getItem('objects') || '[]');
+    const obj = objects.find(o => o.id === id);
+    return obj ? obj.sheetId : null;
+}
+
+function _requireSheetId() {
+    const id = getActiveSheetId();
+    if (!id) throw new Error('Объект не выбран');
+    return id;
+}
 
 // In-memory cache: { sheetName: rowObjects[] }
 const _cache = {};
@@ -48,7 +62,8 @@ async function _apiRequest(url, options = {}) {
 
 async function _loadSheetIds() {
     if (Object.keys(_sheetIds).length > 0) return;
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}?fields=sheets(properties(sheetId,title))`;
+    const sid = _requireSheetId();
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}?fields=sheets(properties(sheetId,title))`;
     const data = await _apiRequest(url);
     (data.sheets || []).forEach(s => {
         _sheetIds[s.properties.title] = s.properties.sheetId;
@@ -59,8 +74,9 @@ async function _loadSheetIds() {
 async function readSheet(sheetName, forceRefresh = false) {
     if (!forceRefresh && _cache[sheetName]) return _cache[sheetName];
 
+    const sid = _requireSheetId();
     const range = encodeURIComponent(`${sheetName}!A:Z`);
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`;
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`;
     const data = await _apiRequest(url);
     const allRows = data.values || [];
 
@@ -81,16 +97,18 @@ async function readSheet(sheetName, forceRefresh = false) {
 async function appendRow(sheetName, rowValues) {
     // Count all existing rows in column A to find the precise next empty row,
     // avoiding INSERT_ROWS table-detection quirks with the :append endpoint.
+    const sid = _requireSheetId();
     const colRange = encodeURIComponent(`${sheetName}!A:A`);
-    const colUrl = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${colRange}`;
+    const colUrl = `${SHEETS_CONFIG.API_BASE}/${sid}/values/${colRange}`;
     const colData = await _apiRequest(colUrl);
     const nextRow = ((colData && colData.values) ? colData.values.length : 0) + 1;
     await updateRow(sheetName, nextRow, rowValues);
 }
 
 async function updateRow(sheetName, rowIndex, rowValues) {
+    const sid = _requireSheetId();
     const range = encodeURIComponent(`${sheetName}!A${rowIndex}:Z${rowIndex}`);
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${range}?valueInputOption=RAW`;
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}/values/${range}?valueInputOption=RAW`;
     await _apiRequest(url, {
         method: 'PUT',
         body: JSON.stringify({ values: [rowValues] })
@@ -100,10 +118,11 @@ async function updateRow(sheetName, rowIndex, rowValues) {
 
 async function deleteRow(sheetName, rowIndex) {
     await _loadSheetIds();
+    const sid = _requireSheetId();
     const sheetId = _sheetIds[sheetName];
     if (sheetId === undefined) throw new Error(`Sheet not found: ${sheetName}`);
 
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}:batchUpdate`;
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}:batchUpdate`;
     await _apiRequest(url, {
         method: 'POST',
         body: JSON.stringify({
@@ -123,8 +142,12 @@ async function deleteRow(sheetName, rowIndex) {
 }
 
 function invalidateCache(sheetName) {
-    if (sheetName) delete _cache[sheetName];
-    else Object.keys(_cache).forEach(k => delete _cache[k]);
+    if (sheetName) {
+        delete _cache[sheetName];
+    } else {
+        Object.keys(_cache).forEach(k => delete _cache[k]);
+        Object.keys(_sheetIds).forEach(k => delete _sheetIds[k]);
+    }
 }
 
 // ===== Domain helpers =====
@@ -593,6 +616,7 @@ async function _readSheetRaw(spreadsheetId, sheetName) {
 }
 
 async function createBackup() {
+    const sid = _requireSheetId();
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
@@ -602,7 +626,7 @@ async function createBackup() {
     // 1. Read all sheets from main spreadsheet
     const sheetData = {};
     for (const sheet of _BACKUP_SHEETS) {
-        sheetData[sheet] = await _readSheetRaw(SHEETS_CONFIG.SPREADSHEET_ID, sheet);
+        sheetData[sheet] = await _readSheetRaw(sid, sheet);
     }
 
     // 2. Create new spreadsheet with all sheet names
@@ -644,6 +668,7 @@ async function listBackups() {
 }
 
 async function restoreBackup(backupId) {
+    const sid = _requireSheetId();
     const DATA_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases'];
 
     // 1. Read all data from backup spreadsheet
@@ -664,13 +689,13 @@ async function restoreBackup(backupId) {
     for (const sheet of DATA_SHEETS) {
         const clearRange = encodeURIComponent(`${sheet}!A:Z`);
         await _apiRequest(
-            `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${clearRange}:clear`,
+            `${SHEETS_CONFIG.API_BASE}/${sid}/values/${clearRange}:clear`,
             { method: 'POST', body: '{}' }
         );
         if (sheetData[sheet].length > 0) {
             const writeRange = encodeURIComponent(`${sheet}!A1`);
             await _apiRequest(
-                `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}/values/${writeRange}?valueInputOption=RAW`,
+                `${SHEETS_CONFIG.API_BASE}/${sid}/values/${writeRange}?valueInputOption=RAW`,
                 { method: 'PUT', body: JSON.stringify({ values: sheetData[sheet] }) }
             );
         }
@@ -683,9 +708,10 @@ async function restoreBackup(backupId) {
 }
 
 async function exportToJson() {
+    const sid = _requireSheetId();
     const data = {};
     for (const sheet of _BACKUP_SHEETS) {
-        data[sheet] = await _readSheetRaw(SHEETS_CONFIG.SPREADSHEET_ID, sheet);
+        data[sheet] = await _readSheetRaw(sid, sheet);
     }
     return data;
 }
@@ -760,7 +786,8 @@ async function deleteWorker(id) {
 async function _ensureWorkersSheet() {
     await _loadSheetIds();
     if (_sheetIds['workers'] !== undefined) return;
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}:batchUpdate`;
+    const sid = _requireSheetId();
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}:batchUpdate`;
     await _apiRequest(url, {
         method: 'POST',
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'workers' } } }] })
@@ -775,7 +802,8 @@ async function _ensureWorkersSheet() {
 async function _ensureSettingsSheet() {
     await _loadSheetIds();
     if (_sheetIds['settings'] !== undefined) return;
-    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}:batchUpdate`;
+    const sid = _requireSheetId();
+    const url = `${SHEETS_CONFIG.API_BASE}/${sid}:batchUpdate`;
     await _apiRequest(url, {
         method: 'POST',
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'settings' } } }] })
@@ -817,5 +845,6 @@ window.Sheets = {
     getPurchases, addPurchase, updatePurchase, deletePurchase,
     getWorkers, addWorker, updateWorker, deleteWorker,
     getSettings, saveSetting,
-    invalidateCache, generateId, generatePrefixedId
+    invalidateCache, generateId, generatePrefixedId,
+    getActiveSheetId, LEGACY_SPREADSHEET_ID
 };
