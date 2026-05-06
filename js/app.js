@@ -162,13 +162,8 @@ function setHourlyRate(val) {
 }
 
 function getObjectCode() {
-    return localStorage.getItem('object_code') || '';
-}
-
-function setObjectCode(val) {
-    const clean = String(val).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-    localStorage.setItem('object_code', clean);
-    return clean;
+    const obj = getActiveObject();
+    return obj?.code || localStorage.getItem('object_code') || '';
 }
 
 function _escHtml(s) {
@@ -181,8 +176,13 @@ function getObjects() {
     return JSON.parse(localStorage.getItem('objects') || '[]');
 }
 
-function saveObjects(objects) {
+function _saveObjectsLocal(objects) {
     localStorage.setItem('objects', JSON.stringify(objects));
+}
+
+function saveObjects(objects) {
+    _saveObjectsLocal(objects);
+    Sheets.saveObjectsRegistry(objects).catch(e => console.warn('Registry save failed:', e));
 }
 
 function getActiveObject() {
@@ -200,15 +200,46 @@ function updateObjectDisplay() {
 }
 
 function migrateObjects() {
-    if (getObjects().length > 0) return;
+    const existing = getObjects();
+    if (existing.length > 0) {
+        let changed = false;
+        existing.forEach(o => {
+            if (!o.code) { o.code = Sheets.generateObjectCode(); changed = true; }
+        });
+        if (changed) saveObjects(existing);
+        return;
+    }
     const obj = {
-        id: Sheets.generatePrefixedId('obj'),
+        id: 'obj_' + Math.random().toString(36).slice(2, 9),
         name: 'Основной объект',
         sheetId: Sheets.LEGACY_SPREADSHEET_ID,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        code: Sheets.generateObjectCode()
     };
     saveObjects([obj]);
     localStorage.setItem('activeObjectId', obj.id);
+}
+
+// ===== Cross-device object sync =====
+
+async function syncObjectsFromRegistry() {
+    try {
+        const registryObjects = await Sheets.loadObjectsRegistry();
+        if (registryObjects === null || registryObjects.length === 0) {
+            const localObjects = getObjects();
+            if (localObjects.length > 0) {
+                Sheets.saveObjectsRegistry(localObjects).catch(e => console.warn('Registry init failed:', e));
+            }
+            return;
+        }
+        _saveObjectsLocal(registryObjects);
+        const activeId = localStorage.getItem('activeObjectId');
+        if (activeId && !registryObjects.find(o => o.id === activeId)) {
+            localStorage.removeItem('activeObjectId');
+        }
+    } catch (e) {
+        console.error('Registry sync failed:', e);
+    }
 }
 
 // ===== Object select overlay =====
@@ -293,10 +324,11 @@ function showObjectSelectOverlay() {
         }
 
         const obj = {
-            id: Sheets.generatePrefixedId('obj'),
+            id: 'obj_' + Math.random().toString(36).slice(2, 9),
             name,
             sheetId,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            code: Sheets.generateObjectCode()
         };
         const objects = getObjects();
         objects.push(obj);
@@ -326,7 +358,6 @@ async function _selectObjectAndInit(id) {
         try {
             const settings = await Sheets.getSettings();
             if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
-            if (settings.object_code != null) setObjectCode(String(settings.object_code));
         } catch (e) {
             console.error('Settings re-sync failed:', e);
         }
@@ -349,7 +380,6 @@ async function _initAppUI() {
     try {
         const settings = await Sheets.getSettings();
         if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
-        if (settings.object_code != null) setObjectCode(String(settings.object_code));
     } catch (e) {
         console.error('Settings sync failed:', e);
     }
@@ -480,14 +510,6 @@ function openSettings() {
     </div>
     <div class="card" style="margin-bottom:16px">
         <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Код объекта</label>
-            <input type="text" class="form-control" id="settings-objcode" value="${_escHtml(getObjectCode())}" placeholder="main, villa1, obj2…" maxlength="8" autocomplete="off">
-            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Только латиница и цифры, до 8 символов. Используется в ID новых записей.</div>
-        </div>
-        <button class="btn btn-primary" id="settings-objcode-save-btn">Сохранить код</button>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-        <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Исполнители</label>
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Добавление, переименование и удаление исполнителей</div>
             <button class="btn btn-outline" id="settings-workers-btn" style="width:auto;padding:8px 16px;font-size:14px">
@@ -545,19 +567,6 @@ function openSettings() {
             showToast('Настройки сохранены');
         } catch (e) {
             console.error('saveSetting failed:', e);
-            showToast('Сохранено локально. Ошибка синхронизации: ' + (e.message || e), 'error');
-        }
-    });
-
-    content.querySelector('#settings-objcode-save-btn').addEventListener('click', async () => {
-        const raw = content.querySelector('#settings-objcode').value.trim();
-        const clean = setObjectCode(raw);
-        if (!clean) { showToast('Введите код объекта', 'error'); return; }
-        content.querySelector('#settings-objcode').value = clean;
-        try {
-            await Sheets.saveSetting('object_code', clean);
-            showToast('Код объекта сохранён');
-        } catch (e) {
             showToast('Сохранено локально. Ошибка синхронизации: ' + (e.message || e), 'error');
         }
     });
@@ -701,10 +710,11 @@ function openObjectsManageSheet() {
             }
 
             const obj = {
-                id: Sheets.generatePrefixedId('obj'),
+                id: 'obj_' + Math.random().toString(36).slice(2, 9),
                 name,
                 sheetId,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                code: Sheets.generateObjectCode()
             };
             objects.push(obj);
             saveObjects(objects);
@@ -1061,6 +1071,9 @@ window.App = {
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
+
+    // Sync objects from shared registry (cross-device)
+    await syncObjectsFromRegistry();
 
     // Migration: ensure objects array is populated
     migrateObjects();

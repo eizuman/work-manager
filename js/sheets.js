@@ -150,6 +150,66 @@ function invalidateCache(sheetName) {
     }
 }
 
+// ===== Objects registry (cross-device sync) =====
+
+const REGISTRY_SHEET_NAME = '_registry';
+let _registrySheetEnsured = false;
+
+async function _ensureRegistrySheet() {
+    if (_registrySheetEnsured) return;
+    const url = `${SHEETS_CONFIG.API_BASE}/${LEGACY_SPREADSHEET_ID}?fields=sheets(properties(title))`;
+    const meta = await _apiRequest(url);
+    const exists = (meta?.sheets || []).some(s => s.properties.title === REGISTRY_SHEET_NAME);
+    if (!exists) {
+        await _apiRequest(`${SHEETS_CONFIG.API_BASE}/${LEGACY_SPREADSHEET_ID}:batchUpdate`, {
+            method: 'POST',
+            body: JSON.stringify({ requests: [{ addSheet: { properties: { title: REGISTRY_SHEET_NAME } } }] })
+        });
+    }
+    _registrySheetEnsured = true;
+}
+
+async function loadObjectsRegistry() {
+    const range = encodeURIComponent(`${REGISTRY_SHEET_NAME}!A:E`);
+    const url = `${SHEETS_CONFIG.API_BASE}/${LEGACY_SPREADSHEET_ID}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`;
+    try {
+        const data = await _apiRequest(url);
+        _registrySheetEnsured = true;
+        const rows = data?.values || [];
+        return rows.map(r => ({
+            id: String(r[0] || ''),
+            name: String(r[1] || ''),
+            sheetId: String(r[2] || ''),
+            createdAt: String(r[3] || ''),
+            code: String(r[4] || '')
+        })).filter(o => o.id && o.sheetId);
+    } catch (e) {
+        if (e.message?.includes('400') || e.message?.includes('Unable to parse range')) {
+            return null;
+        }
+        throw e;
+    }
+}
+
+async function saveObjectsRegistry(objects) {
+    await _ensureRegistrySheet();
+    const clearRange = encodeURIComponent(`${REGISTRY_SHEET_NAME}!A:E`);
+    await _apiRequest(`${SHEETS_CONFIG.API_BASE}/${LEGACY_SPREADSHEET_ID}/values/${clearRange}:clear`, {
+        method: 'POST', body: '{}'
+    });
+    if (objects.length === 0) return;
+    const writeRange = encodeURIComponent(`${REGISTRY_SHEET_NAME}!A1`);
+    const values = objects.map(o => [o.id || '', o.name || '', o.sheetId || '', o.createdAt || '', o.code || '']);
+    await _apiRequest(`${SHEETS_CONFIG.API_BASE}/${LEGACY_SPREADSHEET_ID}/values/${writeRange}?valueInputOption=RAW`, {
+        method: 'PUT',
+        body: JSON.stringify({ values })
+    });
+}
+
+function generateObjectCode() {
+    return Math.random().toString(36).slice(2, 8);
+}
+
 // ===== Domain helpers =====
 
 function generateId() {
@@ -157,7 +217,10 @@ function generateId() {
 }
 
 function generatePrefixedId(type) {
-    const code = (localStorage.getItem('object_code') || 'obj').slice(0, 8);
+    const activeId = localStorage.getItem('activeObjectId');
+    const objects = JSON.parse(localStorage.getItem('objects') || '[]');
+    const obj = objects.find(o => o.id === activeId);
+    const code = (obj?.code || localStorage.getItem('object_code') || 'obj').slice(0, 8);
     return `${type}_${code}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
@@ -857,7 +920,8 @@ window.Sheets = {
     getPurchases, addPurchase, updatePurchase, deletePurchase,
     getWorkers, addWorker, updateWorker, deleteWorker,
     getSettings, saveSetting,
-    invalidateCache, generateId, generatePrefixedId,
+    invalidateCache, generateId, generatePrefixedId, generateObjectCode,
     getActiveSheetId, LEGACY_SPREADSHEET_ID,
+    loadObjectsRegistry, saveObjectsRegistry,
     createObjectSpreadsheet
 };
