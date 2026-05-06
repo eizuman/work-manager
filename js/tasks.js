@@ -11,7 +11,7 @@ const TasksModule = (() => {
     let filterStatuses = new Set();
     let filterWeathers = new Set();
     let filterTagIds = new Set();
-    let filtersExpanded = false;
+
     let statusDropdownOpen = false;
     let tagsExpanded = false;
     let _docHandler = null;
@@ -162,18 +162,11 @@ const TasksModule = (() => {
             <!-- Mobile filter bar -->
             <div class="filters-bar mobile-only" id="filters-bar">
                 <div class="filters-mobile-main">
-                    <button class="filter-toggle-btn${filterStatuses.size > 0 ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                    </button>
                     <button class="filter-tags-btn${filterTagIds.size > 0 ? ' has-active' : ''}" id="tags-manage-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     </button>
-                    ${tagChipsHtml ? `<div class="filters-inline-tags">${tagChipsHtml}</div>` : ''}
                 </div>
                 <div class="filters-row-weather">${weatherHtml}</div>
-                ${filtersExpanded ? `<div class="filters-panel" id="filters-panel" style="width:100%;padding-top:6px">
-                    <div class="filters-row-status">${statusHtml}</div>
-                </div>` : ''}
             </div>
 
             <div class="task-list" id="task-list">
@@ -274,8 +267,6 @@ const TasksModule = (() => {
         const filtersBar = container.querySelector('#filters-bar');
         if (filtersBar) {
             filtersBar.addEventListener('click', (e) => {
-                const toggleBtn = e.target.closest('#filters-toggle-btn');
-                if (toggleBtn) { filtersExpanded = !filtersExpanded; render(); return; }
                 const chip = e.target.closest('.filter-chip, .filter-chip-tag');
                 if (!chip) return;
                 applyFilterChip(chip);
