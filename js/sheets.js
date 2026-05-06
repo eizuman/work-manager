@@ -615,6 +615,18 @@ async function _readSheetRaw(spreadsheetId, sheetName) {
     } catch (_) { return []; }
 }
 
+async function createObjectSpreadsheet(name) {
+    const ALL_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases', 'workers', 'settings'];
+    const newSS = await _apiRequest(SHEETS_CONFIG.API_BASE, {
+        method: 'POST',
+        body: JSON.stringify({
+            properties: { title: `Work Manager — ${name}` },
+            sheets: ALL_SHEETS.map(s => ({ properties: { title: s } }))
+        })
+    });
+    return newSS.spreadsheetId;
+}
+
 async function createBackup() {
     const sid = _requireSheetId();
     const now = new Date();
@@ -846,5 +858,6 @@ window.Sheets = {
     getWorkers, addWorker, updateWorker, deleteWorker,
     getSettings, saveSetting,
     invalidateCache, generateId, generatePrefixedId,
-    getActiveSheetId, LEGACY_SPREADSHEET_ID
+    getActiveSheetId, LEGACY_SPREADSHEET_ID,
+    createObjectSpreadsheet
 };

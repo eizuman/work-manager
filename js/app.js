@@ -224,6 +224,9 @@ function renderObjectSelectOverlay() {
     addBtnEl.classList.remove('hidden');
     document.getElementById('new-object-name').value = '';
     document.getElementById('new-object-sheetid').value = '';
+    document.getElementById('new-object-use-existing').checked = false;
+    document.getElementById('new-object-sheetid').style.display = 'none';
+    document.getElementById('new-object-save-btn').textContent = 'Создать объект';
 
     if (objects.length === 0) {
         titleEl.textContent = 'Добавьте первый объект';
@@ -256,11 +259,38 @@ function showObjectSelectOverlay() {
         document.getElementById('new-object-name').focus();
     };
 
+    document.getElementById('new-object-use-existing').onchange = (e) => {
+        const sheetIdEl = document.getElementById('new-object-sheetid');
+        const saveBtn = document.getElementById('new-object-save-btn');
+        sheetIdEl.style.display = e.target.checked ? 'block' : 'none';
+        if (e.target.checked) sheetIdEl.style.marginBottom = '14px';
+        saveBtn.textContent = e.target.checked ? 'Добавить объект' : 'Создать объект';
+    };
+
     document.getElementById('new-object-save-btn').onclick = async () => {
         const name = document.getElementById('new-object-name').value.trim();
-        const sheetId = document.getElementById('new-object-sheetid').value.trim();
+        const useExisting = document.getElementById('new-object-use-existing').checked;
+        const sheetIdInput = document.getElementById('new-object-sheetid').value.trim();
+        const saveBtn = document.getElementById('new-object-save-btn');
+
         if (!name) { showToast('Введите название объекта', 'error'); return; }
-        if (!sheetId) { showToast('Введите Google Sheet ID', 'error'); return; }
+        if (useExisting && !sheetIdInput) { showToast('Введите Google Sheet ID', 'error'); return; }
+
+        let sheetId;
+        if (useExisting) {
+            sheetId = sheetIdInput;
+        } else {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Создание таблицы...';
+            try {
+                sheetId = await Sheets.createObjectSpreadsheet(name);
+            } catch (e) {
+                showToast('Ошибка создания таблицы: ' + (e.message || e), 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Создать объект';
+                return;
+            }
+        }
 
         const obj = {
             id: Sheets.generatePrefixedId('obj'),
@@ -623,8 +653,12 @@ function openObjectsManageSheet() {
         <div class="card" style="margin-bottom:16px">
             <label class="form-label" style="margin-bottom:8px">Добавить объект</label>
             <input type="text" class="form-control" id="new-obj-name" placeholder="Название объекта" autocomplete="off" style="margin-bottom:8px">
-            <input type="text" class="form-control" id="new-obj-sheetid" placeholder="Google Sheet ID" autocomplete="off" style="margin-bottom:10px">
-            <button class="btn btn-primary" id="add-obj-btn">Добавить объект</button>
+            <label class="object-existing-toggle" style="margin-bottom:8px">
+                <input type="checkbox" id="new-obj-use-existing">
+                <span>Использовать существующую таблицу</span>
+            </label>
+            <input type="text" class="form-control" id="new-obj-sheetid" placeholder="Google Sheet ID" autocomplete="off" style="display:none;margin-bottom:10px">
+            <button class="btn btn-primary" id="add-obj-btn">Создать объект</button>
         </div>
         <div id="objects-list">${renderListHtml()}</div>`;
     }
@@ -634,11 +668,37 @@ function openObjectsManageSheet() {
     function rebind() {
         content.querySelector('#bs-close-btn').onclick = hideBottomSheet;
 
-        content.querySelector('#add-obj-btn').onclick = () => {
+        content.querySelector('#new-obj-use-existing').onchange = (e) => {
+            const sheetIdEl = content.querySelector('#new-obj-sheetid');
+            const btn = content.querySelector('#add-obj-btn');
+            sheetIdEl.style.display = e.target.checked ? 'block' : 'none';
+            btn.textContent = e.target.checked ? 'Добавить объект' : 'Создать объект';
+        };
+
+        content.querySelector('#add-obj-btn').onclick = async () => {
             const name = content.querySelector('#new-obj-name').value.trim();
-            const sheetId = content.querySelector('#new-obj-sheetid').value.trim();
+            const useExisting = content.querySelector('#new-obj-use-existing').checked;
+            const sheetIdInput = content.querySelector('#new-obj-sheetid').value.trim();
+            const btn = content.querySelector('#add-obj-btn');
+
             if (!name) { showToast('Введите название', 'error'); return; }
-            if (!sheetId) { showToast('Введите Sheet ID', 'error'); return; }
+            if (useExisting && !sheetIdInput) { showToast('Введите Sheet ID', 'error'); return; }
+
+            let sheetId;
+            if (useExisting) {
+                sheetId = sheetIdInput;
+            } else {
+                btn.disabled = true;
+                btn.textContent = 'Создание таблицы...';
+                try {
+                    sheetId = await Sheets.createObjectSpreadsheet(name);
+                } catch (e) {
+                    showToast('Ошибка создания таблицы: ' + (e.message || e), 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Создать объект';
+                    return;
+                }
+            }
 
             const obj = {
                 id: Sheets.generatePrefixedId('obj'),
@@ -650,6 +710,10 @@ function openObjectsManageSheet() {
             saveObjects(objects);
             content.querySelector('#new-obj-name').value = '';
             content.querySelector('#new-obj-sheetid').value = '';
+            content.querySelector('#new-obj-use-existing').checked = false;
+            content.querySelector('#new-obj-sheetid').style.display = 'none';
+            btn.disabled = false;
+            btn.textContent = 'Создать объект';
             content.querySelector('#objects-list').innerHTML = renderListHtml();
             bindEditBtns();
             showToast('Объект добавлен');

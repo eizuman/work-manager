@@ -147,9 +147,13 @@
             <h2 class="object-select-title" id="object-select-title">Выберите объект</h2>
             <div id="object-select-list" class="object-select-list"></div>
             <div id="object-add-form" class="object-add-form hidden">
-                <input type="text" class="form-control" id="new-object-name" placeholder="Название объекта" autocomplete="off" style="margin-bottom:8px">
-                <input type="text" class="form-control" id="new-object-sheetid" placeholder="Google Sheet ID" autocomplete="off" style="margin-bottom:14px">
-                <button class="btn btn-primary" id="new-object-save-btn" style="margin-bottom:8px">Добавить объект</button>
+                <input type="text" class="form-control" id="new-object-name" placeholder="Название объекта" autocomplete="off" style="margin-bottom:10px">
+                <label class="object-existing-toggle" style="margin-bottom:8px">
+                    <input type="checkbox" id="new-object-use-existing">
+                    <span>Использовать существующую таблицу</span>
+                </label>
+                <input type="text" class="form-control" id="new-object-sheetid" placeholder="Google Sheet ID" autocomplete="off" style="display:none;margin-bottom:14px">
+                <button class="btn btn-primary" id="new-object-save-btn" style="margin-bottom:8px">Создать объект</button>
                 <button class="btn btn-outline" id="new-object-cancel-btn">Отмена</button>
             </div>
             <button id="object-select-add-btn" class="btn btn-outline object-select-add-btn">+ Добавить объект</button>

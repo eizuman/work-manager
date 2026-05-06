@@ -2771,6 +2771,24 @@ canvas {
 
 .object-add-form.hidden { display: none; }
 
+.object-existing-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.object-existing-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--green-dark);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
 /* ===== HEADER OBJECT BUTTON (mobile) ===== */
 .header-object-btn {
     display: flex;
