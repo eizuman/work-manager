@@ -352,9 +352,9 @@ async function openWorkersManageSheet() {
             <span class="bs-title">Исполнители</span>
             <div style="width:40px"></div>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-            <input type="text" class="form-control" id="new-worker-input" placeholder="Имя исполнителя" style="flex:1">
-            <button class="btn btn-primary" id="add-worker-btn" style="flex-shrink:0;white-space:nowrap">Добавить</button>
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+            <input type="text" class="form-control" id="new-worker-input" placeholder="Имя исполнителя" style="flex:1;min-width:0">
+            <button class="btn btn-primary" id="add-worker-btn" style="width:auto;flex-shrink:0;white-space:nowrap;padding:12px 18px">Добавить</button>
         </div>
         <div id="workers-list">${listHtml}</div>`;
     }
