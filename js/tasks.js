@@ -5,6 +5,7 @@ const TasksModule = (() => {
     let tasks = [];
     let tags = [];
     let purchases = [];
+    let workers = [];
     let scheduledMap = new Map();
 
     // Active filters (Sets for multi-select; empty = show all)
@@ -39,12 +40,18 @@ const TasksModule = (() => {
 
     async function loadData() {
         try {
-            [tasks, tags, purchases] = await App.withLoading(() => Promise.all([Sheets.getTasks(), Sheets.getTags(), Sheets.getPurchases()]));
+            [tasks, tags, purchases, workers] = await App.withLoading(() => Promise.all([
+                Sheets.getTasks(), Sheets.getTags(), Sheets.getPurchases(), Sheets.getWorkers()
+            ]));
         } catch (err) {
             App.handleError(err, 'Загрузка задач');
-            tasks = []; tags = [];
+            tasks = []; tags = []; workers = [];
         }
         try { scheduledMap = await Sheets.getScheduledTaskIds(); } catch (_) { scheduledMap = new Map(); }
+    }
+
+    async function reloadWorkers() {
+        try { workers = await Sheets.getWorkers(true); } catch (_) {}
     }
 
     function formatScheduledBadge(dates) {
@@ -65,6 +72,11 @@ const TasksModule = (() => {
 
     function getTagById(id) {
         return tags.find(t => t.id === id);
+    }
+
+    function getWorkerName(id) {
+        const w = workers.find(w => w.id === id);
+        return w ? w.name : id;
     }
 
     function renderTagPill(tagId, showRemove = false) {
@@ -212,6 +224,7 @@ const TasksModule = (() => {
             </div>
             <div class="task-body">
                 <div class="task-title">${escapeHtml(task.title)}</div>
+                ${task.assignees && task.assignees.length ? `<div class="task-assignees">${task.assignees.map(a => `<span class="task-assignee-badge">${escapeHtml(getWorkerName(a))}</span>`).join('')}</div>` : ''}
                 ${tagPills ? `<div class="task-tags">${tagPills}</div>` : ''}
             </div>
             <div class="task-weather${isDone ? ' done' : ''}">${weatherIcon}</div>
@@ -467,10 +480,12 @@ const TasksModule = (() => {
 
         <div class="form-group">
             <label class="form-label">Исполнители</label>
-            <div class="assignees-group">
-                <button class="assignee-btn${selectedAssignees.includes('Я') ? ' active' : ''}" data-assignee="Я">Я</button>
-                <button class="assignee-btn${selectedAssignees.includes('Работник') ? ' active' : ''}" data-assignee="Работник">Работник</button>
-            </div>
+            ${workers.length === 0
+                ? `<div style="font-size:13px;color:var(--text-muted)">Исполнители не добавлены. Добавьте в <b>Настройках → Исполнители</b>.</div>`
+                : `<div class="assignees-group">${workers.map(w =>
+                    `<button class="assignee-btn${selectedAssignees.includes(w.id) ? ' active' : ''}" data-assignee="${w.id}">${escapeHtml(w.name)}</button>`
+                ).join('')}</div>`
+            }
         </div>
 
         <div class="form-group">
@@ -891,5 +906,5 @@ const TasksModule = (() => {
         return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    return { init, openTagsManageSheet };
+    return { init, openTagsManageSheet, reloadWorkers };
 })();

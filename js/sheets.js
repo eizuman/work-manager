@@ -133,6 +133,11 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+function generatePrefixedId(type) {
+    const code = (localStorage.getItem('object_code') || 'obj').slice(0, 8);
+    return `${type}_${code}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 function today() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -576,7 +581,7 @@ async function deletePurchase(id) {
 // ===== Backup =====
 // Uses Sheets API only (no Drive scope). Creates a full copy as a new spreadsheet.
 
-const _BACKUP_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases', 'settings'];
+const _BACKUP_SHEETS = ['work_log', 'finance', 'tasks', 'tags', 'purchases', 'workers', 'settings'];
 
 async function _readSheetRaw(spreadsheetId, sheetName) {
     try {
@@ -699,6 +704,71 @@ async function getScheduledTaskIds() {
     return map;
 }
 
+// ===== workers =====
+// Columns: id(0) | name(1) | active(2) | created_at(3)
+
+function _rowToWorker(row) {
+    const v = row.values;
+    return {
+        id: v[0] || '',
+        name: v[1] || '',
+        active: String(v[2]) !== 'false',
+        created_at: v[3] || '',
+        _rowIndex: row.rowIndex
+    };
+}
+
+function _workerToRow(w) {
+    return [w.id, w.name, w.active !== false ? 'true' : 'false', w.created_at || nowIso()];
+}
+
+async function getWorkers(forceRefresh) {
+    try {
+        const rows = await readSheet('workers', forceRefresh);
+        return rows.map(_rowToWorker).filter(r => r.id);
+    } catch (_) { return []; }
+}
+
+async function addWorker(name) {
+    await _ensureWorkersSheet();
+    const worker = {
+        id: generatePrefixedId('w'),
+        name: name.trim(),
+        active: true,
+        created_at: nowIso()
+    };
+    await appendRow('workers', _workerToRow(worker));
+    return worker;
+}
+
+async function updateWorker(id, data) {
+    const list = await getWorkers(true);
+    const found = list.find(w => w.id === id);
+    if (!found) return;
+    const updated = { ...found, ...data, id: found.id, _rowIndex: found._rowIndex };
+    await updateRow('workers', found._rowIndex, _workerToRow(updated));
+    return updated;
+}
+
+async function deleteWorker(id) {
+    const list = await getWorkers(true);
+    const found = list.find(w => w.id === id);
+    if (!found) return;
+    await deleteRow('workers', found._rowIndex);
+}
+
+async function _ensureWorkersSheet() {
+    await _loadSheetIds();
+    if (_sheetIds['workers'] !== undefined) return;
+    const url = `${SHEETS_CONFIG.API_BASE}/${SHEETS_CONFIG.SPREADSHEET_ID}:batchUpdate`;
+    await _apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'workers' } } }] })
+    });
+    Object.keys(_sheetIds).forEach(k => delete _sheetIds[k]);
+    await _loadSheetIds();
+}
+
 // ===== settings =====
 // Sheet: settings | Columns: key(0) | value(1)
 
@@ -745,6 +815,7 @@ window.Sheets = {
     getTasks, addTask, updateTask, deleteTask, reorderTasks,
     getTags, addTag, updateTag, deleteTag,
     getPurchases, addPurchase, updatePurchase, deletePurchase,
+    getWorkers, addWorker, updateWorker, deleteWorker,
     getSettings, saveSetting,
-    invalidateCache, generateId
+    invalidateCache, generateId, generatePrefixedId
 };

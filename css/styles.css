@@ -1520,6 +1520,39 @@ select.form-control {
     gap: 4px;
 }
 
+.task-assignees {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 3px;
+}
+
+.task-assignee-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-radius: 10px;
+    padding: 1px 7px;
+    white-space: nowrap;
+}
+
+/* Workers manage list */
+.worker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.worker-item:last-child { border-bottom: none; }
+
+.worker-name {
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
 .task-scheduled-badge {
     display: inline-flex;
     align-items: center;
@@ -1575,10 +1608,15 @@ select.form-control {
 
 /* Task form */
 .assignees-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 4px;
+}
+
+.assignees-group .assignee-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 100px;
 }
 
 .assignee-btn {

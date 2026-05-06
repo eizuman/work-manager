@@ -160,6 +160,20 @@ function setHourlyRate(val) {
     localStorage.setItem('hourly_rate', String(parseFloat(val) || 700));
 }
 
+function getObjectCode() {
+    return localStorage.getItem('object_code') || '';
+}
+
+function setObjectCode(val) {
+    const clean = String(val).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+    localStorage.setItem('object_code', clean);
+    return clean;
+}
+
+function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function openSettings() {
     const rate = getHourlyRate();
     const lastBackup = localStorage.getItem('last_auto_backup');
@@ -183,6 +197,24 @@ function openSettings() {
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Подставляется по умолчанию при добавлении нового рабочего дня.</div>
         </div>
         <button class="btn btn-primary" id="settings-save-btn">Сохранить ставку</button>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+        <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Код объекта</label>
+            <input type="text" class="form-control" id="settings-objcode" value="${_escHtml(getObjectCode())}" placeholder="main, villa1, obj2…" maxlength="8" autocomplete="off">
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">Только латиница и цифры, до 8 символов. Используется в ID новых записей.</div>
+        </div>
+        <button class="btn btn-primary" id="settings-objcode-save-btn">Сохранить код</button>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+        <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Исполнители</label>
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Добавление, переименование и удаление исполнителей</div>
+            <button class="btn btn-outline" id="settings-workers-btn" style="width:auto;padding:8px 16px;font-size:14px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Управление исполнителями
+            </button>
+        </div>
     </div>
     <div class="card" style="margin-bottom:16px">
         <div class="form-group" style="margin-bottom:12px">
@@ -232,6 +264,24 @@ function openSettings() {
         }
     });
 
+    content.querySelector('#settings-objcode-save-btn').addEventListener('click', async () => {
+        const raw = content.querySelector('#settings-objcode').value.trim();
+        const clean = setObjectCode(raw);
+        if (!clean) { showToast('Введите код объекта', 'error'); return; }
+        content.querySelector('#settings-objcode').value = clean;
+        try {
+            await Sheets.saveSetting('object_code', clean);
+            showToast('Код объекта сохранён');
+        } catch (e) {
+            showToast('Сохранено локально. Ошибка синхронизации: ' + (e.message || e), 'error');
+        }
+    });
+
+    content.querySelector('#settings-workers-btn').addEventListener('click', () => {
+        hideBottomSheet();
+        setTimeout(() => openWorkersManageSheet(), 320);
+    });
+
     content.querySelector('#settings-tags-btn').addEventListener('click', () => {
         hideBottomSheet();
         setTimeout(() => TasksModule.openTagsManageSheet(), 320);
@@ -279,6 +329,132 @@ function openSettings() {
         hideBottomSheet();
         setTimeout(() => openRestoreSheet(), 320);
     });
+}
+
+async function openWorkersManageSheet() {
+    let workers = await withLoading(() => Sheets.getWorkers());
+
+    function buildHtml() {
+        const listHtml = workers.length === 0
+            ? '<div style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:14px">Исполнители не добавлены</div>'
+            : workers.map(w => `
+                <div class="worker-item" data-id="${_escHtml(w.id)}">
+                    <span class="worker-name">${_escHtml(w.name)}</span>
+                    <button class="icon-btn worker-edit-btn" data-id="${_escHtml(w.id)}" title="Редактировать">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                </div>`).join('');
+        return `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Исполнители</span>
+            <div style="width:40px"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+            <input type="text" class="form-control" id="new-worker-input" placeholder="Имя исполнителя" style="flex:1">
+            <button class="btn btn-primary" id="add-worker-btn" style="flex-shrink:0;white-space:nowrap">Добавить</button>
+        </div>
+        <div id="workers-list">${listHtml}</div>`;
+    }
+
+    const content = showBottomSheet(buildHtml());
+
+    function rebind() {
+        content.querySelector('#bs-close-btn').addEventListener('click', hideBottomSheet);
+
+        content.querySelector('#add-worker-btn').addEventListener('click', async () => {
+            const input = content.querySelector('#new-worker-input');
+            const name = input.value.trim();
+            if (!name) { showToast('Введите имя', 'error'); return; }
+            try {
+                const w = await withLoading(() => Sheets.addWorker(name));
+                workers.push(w);
+                input.value = '';
+                content.querySelector('#workers-list').outerHTML = `<div id="workers-list">${workers.length === 0 ? '' : workers.map(w => `
+                    <div class="worker-item" data-id="${_escHtml(w.id)}">
+                        <span class="worker-name">${_escHtml(w.name)}</span>
+                        <button class="icon-btn worker-edit-btn" data-id="${_escHtml(w.id)}" title="Редактировать">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                    </div>`).join('')}</div>`;
+                bindEditBtns();
+                showToast('Исполнитель добавлен');
+                if (window.TasksModule) TasksModule.reloadWorkers();
+            } catch (e) { showToast('Ошибка: ' + (e.message || e), 'error'); }
+        });
+
+        bindEditBtns();
+    }
+
+    function bindEditBtns() {
+        content.querySelectorAll('.worker-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const worker = workers.find(w => w.id === id);
+                if (worker) openEditWorkerSheet(worker);
+            });
+        });
+    }
+
+    function openEditWorkerSheet(worker) {
+        hideBottomSheet();
+        setTimeout(() => {
+            const html = `
+            <div class="bs-header">
+                <button class="icon-btn" id="bs-close-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <span class="bs-title">Редактировать исполнителя</span>
+                <div style="width:40px"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Имя</label>
+                <input type="text" class="form-control" id="edit-worker-input" value="${_escHtml(worker.name)}">
+            </div>
+            <button class="btn btn-primary" id="edit-worker-save" style="margin-bottom:10px">Сохранить</button>
+            <button class="btn btn-danger" id="edit-worker-delete">Удалить исполнителя</button>`;
+
+            const c = showBottomSheet(html);
+            c.querySelector('#bs-close-btn').addEventListener('click', () => {
+                hideBottomSheet();
+                setTimeout(() => openWorkersManageSheet(), 320);
+            });
+            c.querySelector('#edit-worker-input').focus();
+
+            c.querySelector('#edit-worker-save').addEventListener('click', async () => {
+                const name = c.querySelector('#edit-worker-input').value.trim();
+                if (!name) { showToast('Введите имя', 'error'); return; }
+                try {
+                    await withLoading(() => Sheets.updateWorker(worker.id, { name }));
+                    const w = workers.find(w => w.id === worker.id);
+                    if (w) w.name = name;
+                    hideBottomSheet();
+                    showToast('Исполнитель переименован');
+                    if (window.TasksModule) TasksModule.reloadWorkers();
+                    setTimeout(() => openWorkersManageSheet(), 320);
+                } catch (e) { showToast('Ошибка: ' + (e.message || e), 'error'); }
+            });
+
+            c.querySelector('#edit-worker-delete').addEventListener('click', () => {
+                hideBottomSheet();
+                setTimeout(() => {
+                    showConfirmDialog(`Удалить исполнителя «${worker.name}»?`, async () => {
+                        try {
+                            await withLoading(() => Sheets.deleteWorker(worker.id));
+                            workers = workers.filter(w => w.id !== worker.id);
+                            showToast('Исполнитель удалён');
+                            if (window.TasksModule) TasksModule.reloadWorkers();
+                            setTimeout(() => openWorkersManageSheet(), 320);
+                        } catch (e) { showToast('Ошибка: ' + (e.message || e), 'error'); }
+                    });
+                }, 320);
+            });
+        }, 320);
+    }
+
+    rebind();
 }
 
 function openRestoreSheet() {
@@ -382,15 +558,11 @@ window.App = {
 document.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
 
-    // Sync hourly_rate from Sheets → localStorage (single source of truth)
+    // Sync settings from Sheets → localStorage
     try {
         const settings = await Sheets.getSettings();
-        if (settings.hourly_rate != null) {
-            setHourlyRate(parseFloat(settings.hourly_rate));
-            console.log('hourly_rate synced from Sheets:', settings.hourly_rate);
-        } else {
-            console.log('hourly_rate not found in Sheets, using localStorage:', getHourlyRate());
-        }
+        if (settings.hourly_rate != null) setHourlyRate(parseFloat(settings.hourly_rate));
+        if (settings.object_code != null) setObjectCode(String(settings.object_code));
     } catch (e) {
         console.error('Settings sync failed:', e);
     }
