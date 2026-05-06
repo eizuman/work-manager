@@ -711,7 +711,8 @@ const TasksModule = (() => {
                     .map(r => ({ title: r.querySelector('.tp-title').value.trim(), price: parseFloat(r.querySelector('.tp-price').value) || 0 }))
                     .filter(p => p.title);
                 if (newPurchases.length > 0) {
-                    await Promise.all(newPurchases.map(p => Sheets.addPurchase({ ...p, task_id: taskId, status: 'pending' })));
+                    const saved = await Promise.all(newPurchases.map(p => Sheets.addPurchase({ ...p, task_id: taskId, status: 'pending' })));
+                    purchases.push(...saved);
                 }
 
                 App.hideBottomSheet();
