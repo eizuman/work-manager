@@ -756,9 +756,12 @@ function openObjectsManageSheet() {
                 <input type="text" class="form-control" id="edit-obj-name" value="${_escHtml(obj.name)}">
             </div>
             <div class="form-group">
-                <label class="form-label">Google Sheet ID</label>
-                <input type="text" class="form-control" id="edit-obj-sheetid" value="${_escHtml(obj.sheetId)}" autocomplete="off"
-                    style="font-size:13px;font-family:monospace">
+                <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+                    Google Sheet ID
+                    <button type="button" id="edit-sheetid-toggle" style="font-size:12px;color:var(--green-medium);font-weight:500">Изменить</button>
+                </label>
+                <input type="text" class="form-control" id="edit-obj-sheetid" value="${_escHtml(obj.sheetId)}" readonly autocomplete="off"
+                    style="font-size:13px;font-family:monospace;color:var(--text-muted);background:var(--bg);cursor:default">
                 <a href="https://docs.google.com/spreadsheets/d/${_escHtml(obj.sheetId)}" target="_blank" rel="noopener"
                     style="display:inline-block;margin-top:6px;font-size:12px;color:var(--green-medium)">
                     Открыть в Google Sheets →
@@ -773,6 +776,27 @@ function openObjectsManageSheet() {
                 setTimeout(() => openObjectsManageSheet(), 320);
             };
             c.querySelector('#edit-obj-name').focus();
+
+            c.querySelector('#edit-sheetid-toggle').onclick = () => {
+                const input = c.querySelector('#edit-obj-sheetid');
+                const btn = c.querySelector('#edit-sheetid-toggle');
+                if (input.readOnly) {
+                    input.readOnly = false;
+                    input.style.color = '';
+                    input.style.background = '';
+                    input.style.cursor = '';
+                    input.focus();
+                    input.select();
+                    btn.textContent = 'Отмена';
+                } else {
+                    input.readOnly = true;
+                    input.value = obj.sheetId;
+                    input.style.color = 'var(--text-muted)';
+                    input.style.background = 'var(--bg)';
+                    input.style.cursor = 'default';
+                    btn.textContent = 'Изменить';
+                }
+            };
 
             c.querySelector('#edit-obj-save').onclick = () => {
                 const name = c.querySelector('#edit-obj-name').value.trim();
