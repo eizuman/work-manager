@@ -755,10 +755,10 @@ function openObjectsManageSheet() {
                 <label class="form-label">Название</label>
                 <input type="text" class="form-control" id="edit-obj-name" value="${_escHtml(obj.name)}">
             </div>
-            <div class="form-group" style="margin-bottom:20px">
+            <div class="form-group">
                 <label class="form-label">Google Sheet ID</label>
-                <input type="text" class="form-control" value="${_escHtml(obj.sheetId)}" readonly
-                    style="color:var(--text-muted);background:var(--bg);cursor:default;font-size:12px;font-family:monospace">
+                <input type="text" class="form-control" id="edit-obj-sheetid" value="${_escHtml(obj.sheetId)}" autocomplete="off"
+                    style="font-size:13px;font-family:monospace">
                 <a href="https://docs.google.com/spreadsheets/d/${_escHtml(obj.sheetId)}" target="_blank" rel="noopener"
                     style="display:inline-block;margin-top:6px;font-size:12px;color:var(--green-medium)">
                     Открыть в Google Sheets →
@@ -776,10 +776,12 @@ function openObjectsManageSheet() {
 
             c.querySelector('#edit-obj-save').onclick = () => {
                 const name = c.querySelector('#edit-obj-name').value.trim();
+                const sheetId = c.querySelector('#edit-obj-sheetid').value.trim();
                 if (!name) { showToast('Введите название', 'error'); return; }
+                if (!sheetId) { showToast('Введите Sheet ID', 'error'); return; }
 
                 const o = objects.find(o => o.id === obj.id);
-                if (o) { o.name = name; }
+                if (o) { o.name = name; o.sheetId = sheetId; }
                 saveObjects(objects);
                 if (isActive) {
                     Sheets.invalidateCache();
