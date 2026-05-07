@@ -667,6 +667,12 @@ select.form-control {
     gap: 8px;
     padding-top: 8px;
 }
+.tags-filter-sheet-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 12px;
+}
 
 /* ===== MODULE: CALENDAR ===== */
 .calendar-wrap {

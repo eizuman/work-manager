@@ -15,6 +15,7 @@ const TasksModule = (() => {
 
     let statusDropdownOpen = false;
     let tagsExpanded = false;
+    let filtersExpanded = false;
     let _docHandler = null;
 
     // Drag state
@@ -174,11 +175,17 @@ const TasksModule = (() => {
             <!-- Mobile filter bar -->
             <div class="filters-bar mobile-only" id="filters-bar">
                 <div class="filters-mobile-main">
-                    <button class="filter-tags-btn${filterTagIds.size > 0 ? ' has-active' : ''}" id="tags-manage-btn">
+                    <button class="filter-toggle-btn${filterStatuses.size > 0 ? ' has-active' : ''}${filtersExpanded ? ' is-open' : ''}" id="filters-toggle-btn">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    </button>
+                    <button class="filter-tags-btn${filterTagIds.size > 0 ? ' has-active' : ''}" id="tags-filter-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     </button>
                 </div>
                 <div class="filters-row-weather">${weatherHtml}</div>
+                ${filtersExpanded ? `<div class="filters-panel" id="filters-panel" style="width:100%;padding-top:6px">
+                    <div class="filters-row-status">${statusHtml}</div>
+                </div>` : ''}
             </div>
 
             <div class="task-list" id="task-list">
@@ -280,6 +287,8 @@ const TasksModule = (() => {
         const filtersBar = container.querySelector('#filters-bar');
         if (filtersBar) {
             filtersBar.addEventListener('click', (e) => {
+                const toggleBtn = e.target.closest('#filters-toggle-btn');
+                if (toggleBtn) { filtersExpanded = !filtersExpanded; render(); return; }
                 const chip = e.target.closest('.filter-chip, .filter-chip-tag');
                 if (!chip) return;
                 applyFilterChip(chip);
@@ -339,8 +348,8 @@ const TasksModule = (() => {
             });
         }
 
-        // Mobile tags manage (opens sheet)
-        container.querySelector('#tags-manage-btn')?.addEventListener('click', openTagsManageSheet);
+        // Mobile tags filter (opens filter sheet)
+        container.querySelector('#tags-filter-btn')?.addEventListener('click', openTagsFilterSheet);
 
         // FAB
         container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
@@ -390,6 +399,54 @@ const TasksModule = (() => {
                     App.hideBottomSheet();
                     setTimeout(() => openEditTag(tag), 320);
                 }
+            });
+        }
+    }
+
+    function openTagsFilterSheet() {
+        const uniqueTagIds = [...new Set(tasks.flatMap(t => t.tags))];
+        const availableTags = uniqueTagIds.map(id => tags.find(t => t.id === id)).filter(Boolean);
+
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Фильтр по тегам</span>
+            <button class="icon-btn" id="tags-filter-reset" style="visibility:${filterTagIds.size > 0 ? 'visible' : 'hidden'};font-size:12px;color:var(--text-muted)">Сброс</button>
+        </div>
+        ${availableTags.length === 0
+            ? '<div style="padding:20px 0;text-align:center;color:var(--text-muted)">Нет тегов в задачах</div>'
+            : `<div class="tags-filter-sheet-pills" id="tags-filter-pills">
+                ${availableTags.map(tag => {
+                    const colorCls = App.tagColorClass(tag.id);
+                    const isActive = filterTagIds.has(tag.id);
+                    return `<button class="filter-chip-tag ${colorCls}${isActive ? ' active' : ''}" data-filter-tag="${tag.id}">${escapeHtml(tag.title)}</button>`;
+                }).join('')}
+               </div>`
+        }`;
+
+        const content = App.showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
+
+        content.querySelector('#tags-filter-reset')?.addEventListener('click', () => {
+            filterTagIds.clear();
+            App.hideBottomSheet();
+            render();
+        });
+
+        const pillsEl = content.querySelector('#tags-filter-pills');
+        if (pillsEl) {
+            pillsEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-filter-tag]');
+                if (!btn) return;
+                const tid = btn.dataset.filterTag;
+                if (filterTagIds.has(tid)) filterTagIds.delete(tid);
+                else filterTagIds.add(tid);
+                btn.classList.toggle('active', filterTagIds.has(tid));
+                const resetBtn = content.querySelector('#tags-filter-reset');
+                if (resetBtn) resetBtn.style.visibility = filterTagIds.size > 0 ? 'visible' : 'hidden';
+                render();
             });
         }
     }
