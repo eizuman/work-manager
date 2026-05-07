@@ -227,15 +227,25 @@ function migrateObjects() {
 async function syncObjectsFromRegistry() {
     try {
         const registryObjects = await Sheets.loadObjectsRegistry();
-        // Registry is empty or unavailable — keep local state as-is.
-        // Never push local objects automatically: that would overwrite another
-        // device's data with stale defaults. Registry gets written only when
-        // the user explicitly creates or edits an object.
         if (!registryObjects || registryObjects.length === 0) return;
 
-        _saveObjectsLocal(registryObjects);
+        // Merge: registry is authoritative for objects it knows about,
+        // but local-only objects (not yet in registry) are preserved and
+        // pushed back so they don't silently disappear on other devices.
+        const localObjects = getObjects();
+        const registryIds = new Set(registryObjects.map(o => o.id));
+        const localOnlyObjects = localObjects.filter(o => !registryIds.has(o.id));
+
+        const merged = [...registryObjects, ...localOnlyObjects];
+        _saveObjectsLocal(merged);
+
+        // Push merged list back so the registry gains the local-only objects
+        if (localOnlyObjects.length > 0) {
+            Sheets.saveObjectsRegistry(merged).catch(e => console.warn('Registry merge failed:', e));
+        }
+
         const activeId = localStorage.getItem('activeObjectId');
-        if (activeId && !registryObjects.find(o => o.id === activeId)) {
+        if (activeId && !merged.find(o => o.id === activeId)) {
             localStorage.removeItem('activeObjectId');
         }
     } catch (e) {
