@@ -206,7 +206,8 @@ function migrateObjects() {
         existing.forEach(o => {
             if (!o.code) { o.code = Sheets.generateObjectCode(); changed = true; }
         });
-        if (changed) saveObjects(existing);
+        // Only update localStorage — never push to registry during migration
+        if (changed) _saveObjectsLocal(existing);
         return;
     }
     const obj = {
@@ -216,7 +217,8 @@ function migrateObjects() {
         createdAt: new Date().toISOString(),
         code: Sheets.generateObjectCode()
     };
-    saveObjects([obj]);
+    // Only save locally — registry is written when user explicitly creates/edits objects
+    _saveObjectsLocal([obj]);
     localStorage.setItem('activeObjectId', obj.id);
 }
 
@@ -225,13 +227,12 @@ function migrateObjects() {
 async function syncObjectsFromRegistry() {
     try {
         const registryObjects = await Sheets.loadObjectsRegistry();
-        if (registryObjects === null || registryObjects.length === 0) {
-            const localObjects = getObjects();
-            if (localObjects.length > 0) {
-                Sheets.saveObjectsRegistry(localObjects).catch(e => console.warn('Registry init failed:', e));
-            }
-            return;
-        }
+        // Registry is empty or unavailable — keep local state as-is.
+        // Never push local objects automatically: that would overwrite another
+        // device's data with stale defaults. Registry gets written only when
+        // the user explicitly creates or edits an object.
+        if (!registryObjects || registryObjects.length === 0) return;
+
         _saveObjectsLocal(registryObjects);
         const activeId = localStorage.getItem('activeObjectId');
         if (activeId && !registryObjects.find(o => o.id === activeId)) {
@@ -491,10 +492,16 @@ function openSettings() {
         <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Объекты</label>
             <div style="margin-top:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">Добавление, переименование и удаление объектов</div>
-            <button class="btn btn-outline" id="settings-objects-btn" style="width:auto;padding:8px 16px;font-size:14px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Управление объектами
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline" id="settings-objects-btn" style="width:auto;padding:8px 16px;font-size:14px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Управление объектами
+                </button>
+                <button class="btn btn-outline" id="settings-objects-sync-btn" style="width:auto;padding:8px 16px;font-size:14px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    Синхронизировать
+                </button>
+            </div>
         </div>
     </div>
     <div class="card" style="margin-bottom:16px">
@@ -555,6 +562,20 @@ function openSettings() {
     content.querySelector('#settings-objects-btn').addEventListener('click', () => {
         hideBottomSheet();
         setTimeout(() => openObjectsManageSheet(), 320);
+    });
+
+    content.querySelector('#settings-objects-sync-btn').addEventListener('click', async () => {
+        const btn = content.querySelector('#settings-objects-sync-btn');
+        btn.disabled = true;
+        btn.textContent = 'Синхронизация...';
+        try {
+            await Sheets.saveObjectsRegistry(getObjects());
+            showToast('Объекты синхронизированы');
+        } catch (e) {
+            showToast('Ошибка синхронизации: ' + (e.message || e), 'error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Синхронизировать';
     });
 
     content.querySelector('#settings-save-btn').addEventListener('click', async () => {
