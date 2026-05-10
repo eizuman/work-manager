@@ -25,9 +25,9 @@ const TasksModule = (() => {
     let dragCurrentIndex = -1;
 
     const WEATHER_ICONS = {
-        sun:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
-        rain: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/></svg>`,
-        any:  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`
+        sun:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+        rain: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/></svg>`,
+        any:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`
     };
 
     const STATUS_LABELS = { new: 'Новая', in_progress: 'В работе', done: 'Выполнена' };
@@ -206,7 +206,7 @@ const TasksModule = (() => {
         const isDone = task.status === 'done';
         const tagPills = task.tags.map(tid => renderTagPill(tid)).join('');
         const weatherIcon = isDone
-            ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`
+            ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`
             : (WEATHER_ICONS[task.weather] || WEATHER_ICONS.any);
 
         const statusLabels = { new: 'Ожидает', in_progress: 'В работе', done: 'Завершено' };
@@ -220,13 +220,13 @@ const TasksModule = (() => {
         return `
         <div class="task-item${isDone ? ' done' : ''}" data-id="${task.id}" draggable="true">
             <div class="task-drag-handle" data-drag-handle>
-                <svg width="16" height="20" viewBox="0 0 16 20" fill="none">
-                    <circle cx="5" cy="5" r="2" fill="#9A8E7A"/>
-                    <circle cx="11" cy="5" r="2" fill="#9A8E7A"/>
-                    <circle cx="5" cy="10" r="2" fill="#9A8E7A"/>
-                    <circle cx="11" cy="10" r="2" fill="#9A8E7A"/>
-                    <circle cx="5" cy="15" r="2" fill="#9A8E7A"/>
-                    <circle cx="11" cy="15" r="2" fill="#9A8E7A"/>
+                <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                    <circle cx="2.5" cy="2.5" r="1.5" fill="#9A8E7A"/>
+                    <circle cx="7.5" cy="2.5" r="1.5" fill="#9A8E7A"/>
+                    <circle cx="2.5" cy="7" r="1.5" fill="#9A8E7A"/>
+                    <circle cx="7.5" cy="7" r="1.5" fill="#9A8E7A"/>
+                    <circle cx="2.5" cy="11.5" r="1.5" fill="#9A8E7A"/>
+                    <circle cx="7.5" cy="11.5" r="1.5" fill="#9A8E7A"/>
                 </svg>
             </div>
             <div class="task-body">
