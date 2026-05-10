@@ -12,9 +12,11 @@ const TasksModule = (() => {
     let filterStatuses = new Set();
     let filterWeathers = new Set();
     let filterTagIds = new Set();
+    let filterAssigneeIds = new Set();
 
     let statusDropdownOpen = false;
     let tagsExpanded = false;
+    let assigneesExpanded = false;
     let filtersExpanded = false;
     let _docHandler = null;
 
@@ -67,6 +69,7 @@ const TasksModule = (() => {
             if (filterStatuses.size > 0 && !filterStatuses.has(t.status)) return false;
             if (filterWeathers.size > 0 && !filterWeathers.has(t.weather) && t.weather !== 'any') return false;
             if (filterTagIds.size > 0 && !t.tags.some(tid => filterTagIds.has(tid))) return false;
+            if (filterAssigneeIds.size > 0 && !t.assignees.some(aid => filterAssigneeIds.has(aid))) return false;
             return true;
         });
     }
@@ -116,7 +119,11 @@ const TasksModule = (() => {
             return `<button class="filter-chip-tag ${colorCls}${filterTagIds.has(tid) ? ' active' : ''}" data-filter-tag="${tid}">${escapeHtml(tag.title)}</button>`;
         }).join('');
 
-        const hasActiveFilters = filterStatuses.size > 0 || filterTagIds.size > 0;
+        const assigneeChipsHtml = workers.map(w =>
+            `<button class="filter-chip${filterAssigneeIds.has(w.id) ? ' active' : ''}" data-filter-assignee="${w.id}">${escapeHtml(w.name)}</button>`
+        ).join('');
+
+        const hasActiveFilters = filterStatuses.size > 0 || filterTagIds.size > 0 || filterAssigneeIds.size > 0;
 
         // Desktop: status filter dropdown
         const statusDropdownHtml = statusDropdownOpen ? `
@@ -149,7 +156,7 @@ const TasksModule = (() => {
                 </button>
             </div>
 
-            <!-- Desktop Row 3: [Теги toggle + chips] ... [Фильтр dropdown + weather] -->
+            <!-- Desktop Row 3: [Теги toggle + chips] [Исполнители toggle + chips] ... [Фильтр dropdown + weather] -->
             <div class="tasks-row tasks-row-3 desktop-only">
                 <div class="tasks-row3-left">
                     <button class="task-filter-btn${filterTagIds.size > 0 ? ' active' : ''}" id="tags-toggle-btn">
@@ -158,6 +165,14 @@ const TasksModule = (() => {
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${tagsExpanded ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
                     </button>
                     ${tagsExpanded && tagChipsHtml ? `<div class="filters-tags-row-inline">${tagChipsHtml}</div>` : ''}
+                    ${workers.length > 0 ? `
+                    <button class="task-filter-btn${filterAssigneeIds.size > 0 ? ' active' : ''}" id="assignees-toggle-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Исполнители${filterAssigneeIds.size > 0 ? ' · ' + filterAssigneeIds.size : ''}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="${assigneesExpanded ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}"/></svg>
+                    </button>
+                    ${assigneesExpanded && assigneeChipsHtml ? `<div class="filters-tags-row-inline">${assigneeChipsHtml}</div>` : ''}
+                    ` : ''}
                 </div>
                 <div class="tasks-row3-right">
                     <div class="task-filter-wrap" id="status-filter-wrap">
@@ -181,6 +196,9 @@ const TasksModule = (() => {
                     <button class="filter-tags-btn${filterTagIds.size > 0 ? ' has-active' : ''}" id="tags-filter-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     </button>
+                    ${workers.length > 0 ? `<button class="filter-tags-btn${filterAssigneeIds.size > 0 ? ' has-active' : ''}" id="assignees-filter-btn">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </button>` : ''}
                 </div>
                 <div class="filters-row-weather">${weatherHtml}</div>
                 ${filtersExpanded ? `<div class="filters-panel" id="filters-panel" style="width:100%;padding-top:6px">
@@ -276,6 +294,10 @@ const TasksModule = (() => {
             const val = chip.dataset.filterTag;
             if (filterTagIds.has(val)) filterTagIds.delete(val);
             else filterTagIds.add(val);
+        } else if ('filterAssignee' in chip.dataset) {
+            const val = chip.dataset.filterAssignee;
+            if (filterAssigneeIds.has(val)) filterAssigneeIds.delete(val);
+            else filterAssigneeIds.add(val);
         }
     }
 
@@ -333,14 +355,16 @@ const TasksModule = (() => {
         // Desktop row 3
         const row3 = container.querySelector('.tasks-row-3');
         if (row3) {
-            // Tags toggle button
             row3.querySelector('#tags-toggle-btn')?.addEventListener('click', () => {
                 tagsExpanded = !tagsExpanded;
                 render();
             });
-            // Tag chip + weather chip clicks
+            row3.querySelector('#assignees-toggle-btn')?.addEventListener('click', () => {
+                assigneesExpanded = !assigneesExpanded;
+                render();
+            });
             row3.addEventListener('click', (e) => {
-                if (e.target.closest('#tags-toggle-btn')) return;
+                if (e.target.closest('#tags-toggle-btn') || e.target.closest('#assignees-toggle-btn')) return;
                 const chip = e.target.closest('.filter-chip, .filter-chip-tag');
                 if (!chip) return;
                 applyFilterChip(chip);
@@ -350,6 +374,7 @@ const TasksModule = (() => {
 
         // Mobile tags filter (opens filter sheet)
         container.querySelector('#tags-filter-btn')?.addEventListener('click', openTagsFilterSheet);
+        container.querySelector('#assignees-filter-btn')?.addEventListener('click', openAssigneesFilterSheet);
 
         // FAB
         container.querySelector('#add-task-btn')?.addEventListener('click', () => openTaskForm(null));
@@ -446,6 +471,47 @@ const TasksModule = (() => {
                 btn.classList.toggle('active', filterTagIds.has(tid));
                 const resetBtn = content.querySelector('#tags-filter-reset');
                 if (resetBtn) resetBtn.style.visibility = filterTagIds.size > 0 ? 'visible' : 'hidden';
+                render();
+            });
+        }
+    }
+
+    function openAssigneesFilterSheet() {
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Фильтр по исполнителям</span>
+            <button class="icon-btn" id="assignees-filter-reset" style="visibility:${filterAssigneeIds.size > 0 ? 'visible' : 'hidden'};font-size:12px;color:var(--text-muted)">Сброс</button>
+        </div>
+        ${workers.length === 0
+            ? '<div style="padding:20px 0;text-align:center;color:var(--text-muted)">Исполнители не добавлены</div>'
+            : `<div class="tags-filter-sheet-pills" id="assignees-filter-pills">
+                ${workers.map(w => `<button class="filter-chip${filterAssigneeIds.has(w.id) ? ' active' : ''}" data-filter-assignee="${w.id}">${escapeHtml(w.name)}</button>`).join('')}
+               </div>`
+        }`;
+
+        const content = App.showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
+
+        content.querySelector('#assignees-filter-reset')?.addEventListener('click', () => {
+            filterAssigneeIds.clear();
+            App.hideBottomSheet();
+            render();
+        });
+
+        const pillsEl = content.querySelector('#assignees-filter-pills');
+        if (pillsEl) {
+            pillsEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-filter-assignee]');
+                if (!btn) return;
+                const aid = btn.dataset.filterAssignee;
+                if (filterAssigneeIds.has(aid)) filterAssigneeIds.delete(aid);
+                else filterAssigneeIds.add(aid);
+                btn.classList.toggle('active', filterAssigneeIds.has(aid));
+                const resetBtn = content.querySelector('#assignees-filter-reset');
+                if (resetBtn) resetBtn.style.visibility = filterAssigneeIds.size > 0 ? 'visible' : 'hidden';
                 render();
             });
         }
