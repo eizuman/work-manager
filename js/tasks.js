@@ -71,7 +71,7 @@ const TasksModule = (() => {
             if (filterTagIds.size > 0 && !t.tags.some(tid => filterTagIds.has(tid))) return false;
             if (filterAssigneeIds.size > 0 && !t.assignees.some(aid => filterAssigneeIds.has(aid))) return false;
             return true;
-        });
+        }).sort((a, b) => a.order - b.order);
     }
 
     function getTagById(id) {
