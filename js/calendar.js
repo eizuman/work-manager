@@ -108,7 +108,7 @@ const CalendarModule = (() => {
             const entry = getWorkLogForDate(ds);
             const status = getDayStatus(entry);
 
-            const isMissed = !entry && ds < todayStr;
+            const isMissed = (!entry || status === 'note') && ds < todayStr;
 
             let classes = 'cal-day';
             if (isToday) classes += ' today';
