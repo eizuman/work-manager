@@ -75,7 +75,8 @@ const CalendarModule = (() => {
 
     function getDayStatus(entry) {
         if (!entry) return null;
-        if (!entry.description && !entry.hours) return null;
+        if (!entry.description && !entry.hours && !entry.note) return null;
+        if (!entry.description && !entry.hours) return 'note';
         return entry.hours > 0 ? 'done' : 'plan';
     }
 
@@ -133,11 +134,17 @@ const CalendarModule = (() => {
                         <div class="cal-day-meta"><span class="cal-hours-pill">${formatHours(entry.hours)}</span>${progHtml}${noteIcon}</div>
                         ${descHtml}
                     </div>`;
-                } else {
+                } else if (status === 'plan') {
                     dot = '<div class="cal-day-dot plan"></div>';
                     content = `<div class="cal-day-content plan">
                         <div class="cal-day-meta"><span class="cal-plan-badge">ПЛАН</span>${progHtml}${noteIcon}</div>
                         ${descHtml}
+                    </div>`;
+                } else if (status === 'note') {
+                    dot = '<div class="cal-day-dot note"></div>';
+                    content = `<div class="cal-day-content">
+                        <div class="cal-day-meta">${noteIcon}</div>
+                        <span class="cal-day-desc-text">${escapeHtml(entry.note)}</span>
                     </div>`;
                 }
             }
@@ -322,7 +329,9 @@ const CalendarModule = (() => {
             <div class="cal-detail-card">
                 ${status === 'done'
                     ? `<div class="cal-detail-time">${formatHours(entry.hours)} · ${entry.rate || 700} ₽/ч · ${App.formatAmount(entry.amount)}</div>`
-                    : `<div class="cal-detail-plan-label">ПЛАН</div>`}
+                    : status === 'plan'
+                    ? `<div class="cal-detail-plan-label">ПЛАН</div>`
+                    : ''}
                 ${tasksHtml ? `<div class="cal-detail-tasks">${tasksHtml}</div>` : ''}
                 ${entry.note ? `<div class="cal-detail-note">📝 ${escapeHtml(entry.note)}</div>` : ''}
             </div>
@@ -684,16 +693,16 @@ const CalendarModule = (() => {
             const items = collectChecklistItems(tasksContainer);
             const description = serializeItems(items);
             const task_ids = items.map(i => i.taskId || '');
+            const note = content.querySelector('#cal-note').value.trim();
 
-            if (!hours && !description.trim()) {
-                App.showToast('Добавьте список работ или укажите часы', 'error');
+            if (!hours && !description.trim() && !note) {
+                App.showToast('Добавьте список работ, укажите часы или напишите заметку', 'error');
                 return;
             }
 
             try {
                 const saved = await App.withLoading(() => Sheets.saveWorkLog({
-                    date: ds, hours, rate, description, task_ids,
-                    note: content.querySelector('#cal-note').value.trim()
+                    date: ds, hours, rate, description, task_ids, note
                 }));
                 const idx = workLogs.findIndex(w => w.date === ds);
                 if (idx >= 0) workLogs[idx] = saved;

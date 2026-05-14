@@ -870,6 +870,12 @@ select.form-control {
     background: var(--text-muted);
 }
 
+/* Calendar note-only dot */
+.cal-day-dot.note {
+    background: var(--orange);
+    opacity: 0.6;
+}
+
 /* Note indicator — ⓘ icon next to date number */
 .cal-day-top {
     display: flex;
