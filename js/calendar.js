@@ -149,7 +149,7 @@ const CalendarModule = (() => {
                 }
             }
 
-            daysHTML += `<div class="${classes}" data-date="${ds}">
+            daysHTML += `<div class="${classes}"${entry ? ' draggable="true"' : ''} data-date="${ds}">
                 <div class="cal-day-top"><div class="cal-day-inner"><span class="cal-day-num">${day}</span></div></div>
                 ${dot}${content}
             </div>`;
@@ -216,10 +216,177 @@ const CalendarModule = (() => {
         }
 
         document.getElementById('calendar-days').addEventListener('click', (e) => {
+            if (_dragJustHappened) { _dragJustHappened = false; return; }
             const cell = e.target.closest('.cal-day[data-date]');
             if (!cell) return;
             openDaySheet(cell.dataset.date);
         });
+
+        bindDrag(document.getElementById('calendar-days'));
+    }
+
+    // ===== Day drag-and-drop =====
+
+    let _dragJustHappened = false;
+
+    function bindDrag(daysEl) {
+        let dragSrcDate = null;
+
+        // — Desktop: HTML5 DnD —
+        daysEl.addEventListener('dragstart', (e) => {
+            const cell = e.target.closest('.cal-day[data-date]');
+            if (!cell || cell.classList.contains('other-month')) { e.preventDefault(); return; }
+            if (!getWorkLogForDate(cell.dataset.date)) { e.preventDefault(); return; }
+            dragSrcDate = cell.dataset.date;
+            cell.classList.add('drag-source');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        daysEl.addEventListener('dragend', () => {
+            daysEl.querySelectorAll('.drag-source,.drag-over').forEach(c => c.classList.remove('drag-source','drag-over'));
+            dragSrcDate = null;
+        });
+
+        daysEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const cell = e.target.closest('.cal-day[data-date]');
+            daysEl.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+            if (cell && !cell.classList.contains('other-month') && cell.dataset.date !== dragSrcDate) {
+                cell.classList.add('drag-over');
+            }
+        });
+
+        daysEl.addEventListener('dragleave', (e) => {
+            if (!e.relatedTarget || !daysEl.contains(e.relatedTarget)) {
+                daysEl.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+            }
+        });
+
+        daysEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const targetCell = e.target.closest('.cal-day[data-date]');
+            daysEl.querySelectorAll('.drag-source,.drag-over').forEach(c => c.classList.remove('drag-source','drag-over'));
+            if (!targetCell || !dragSrcDate || targetCell.dataset.date === dragSrcDate) return;
+            _dragJustHappened = true;
+            executeDrop(dragSrcDate, targetCell.dataset.date);
+            dragSrcDate = null;
+        });
+
+        // — Mobile: long-press drag —
+        let touchSrcDate = null;
+        let touchSrcCell = null;
+        let touchStartX = 0, touchStartY = 0;
+        let touchTimer = null;
+        let touchDragging = false;
+
+        daysEl.addEventListener('touchstart', (e) => {
+            const cell = e.target.closest('.cal-day[data-date]');
+            if (!cell || cell.classList.contains('other-month')) return;
+            if (!getWorkLogForDate(cell.dataset.date)) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchSrcCell = cell;
+            touchTimer = setTimeout(() => {
+                touchSrcDate = cell.dataset.date;
+                touchDragging = true;
+                cell.classList.add('drag-source');
+                if (navigator.vibrate) navigator.vibrate(50);
+            }, 550);
+        }, { passive: true });
+
+        daysEl.addEventListener('touchmove', (e) => {
+            if (touchDragging) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                const cell = el?.closest('.cal-day[data-date]');
+                daysEl.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+                if (cell && !cell.classList.contains('other-month') && cell.dataset.date !== touchSrcDate) {
+                    cell.classList.add('drag-over');
+                }
+                return;
+            }
+            const dx = e.touches[0].clientX - touchStartX;
+            const dy = e.touches[0].clientY - touchStartY;
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+        }, { passive: false });
+
+        daysEl.addEventListener('touchend', (e) => {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+            if (!touchDragging) { touchSrcDate = null; touchSrcCell = null; return; }
+
+            const touch = e.changedTouches[0];
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            const targetCell = el?.closest('.cal-day[data-date]');
+
+            daysEl.querySelectorAll('.drag-source,.drag-over').forEach(c => c.classList.remove('drag-source','drag-over'));
+
+            const srcDate = touchSrcDate;
+            touchSrcDate = null;
+            touchSrcCell = null;
+            touchDragging = false;
+
+            if (targetCell && !targetCell.classList.contains('other-month') && targetCell.dataset.date !== srcDate) {
+                executeDrop(srcDate, targetCell.dataset.date);
+            }
+        });
+
+        daysEl.addEventListener('touchcancel', () => {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+            touchSrcDate = null;
+            touchSrcCell = null;
+            touchDragging = false;
+            daysEl.querySelectorAll('.drag-source,.drag-over').forEach(c => c.classList.remove('drag-source','drag-over'));
+        });
+    }
+
+    function executeDrop(srcDs, tgtDs) {
+        const srcEntry = getWorkLogForDate(srcDs);
+        if (!srcEntry) return;
+
+        const [sy, sm, sd] = srcDs.split('-').map(Number);
+        const [ty, tm, td] = tgtDs.split('-').map(Number);
+        const srcLabel = `${sd} ${App.MONTHS_RU[sm - 1]}`;
+        const tgtLabel = `${td} ${App.MONTHS_RU[tm - 1]}`;
+
+        const tgtEntry = getWorkLogForDate(tgtDs);
+        const warnPart = tgtEntry ? `\n\nНа ${tgtLabel} уже есть запись — она будет удалена.` : '';
+
+        App.showConfirmDialog(
+            `Перенести запись с ${srcLabel} на ${tgtLabel}?${warnPart}`,
+            async () => {
+                try {
+                    await App.withLoading(async () => {
+                        if (tgtEntry) {
+                            await Sheets.deleteWorkLog(tgtEntry.id);
+                            workLogs = workLogs.filter(w => w.id !== tgtEntry.id);
+                        }
+                        const saved = await Sheets.saveWorkLog({
+                            date: tgtDs,
+                            hours: srcEntry.hours,
+                            rate: srcEntry.rate || App.getHourlyRate(),
+                            description: srcEntry.description || '',
+                            task_ids: srcEntry.task_ids || [],
+                            note: srcEntry.note || ''
+                        });
+                        const ti = workLogs.findIndex(w => w.date === tgtDs);
+                        if (ti >= 0) workLogs[ti] = saved; else workLogs.push(saved);
+                        await Sheets.deleteWorkLog(srcEntry.id);
+                        workLogs = workLogs.filter(w => w.id !== srcEntry.id);
+                    });
+                    render();
+                    App.showToast(`Перенесено на ${tgtLabel}`);
+                } catch (err) {
+                    App.handleError(err, 'Перенос');
+                }
+            },
+            'Перенести'
+        );
     }
 
     // ===== Checklist DOM =====

@@ -870,6 +870,19 @@ select.form-control {
     background: var(--text-muted);
 }
 
+/* Calendar drag-and-drop */
+.cal-day[draggable="true"] { cursor: grab; }
+.cal-day[draggable="true"]:active { cursor: grabbing; }
+.cal-day.drag-source {
+    opacity: 0.4;
+    pointer-events: none;
+}
+.cal-day.drag-over {
+    outline: 2px solid var(--green-dark);
+    outline-offset: -2px;
+    background: var(--green-pale) !important;
+}
+
 /* Calendar note-only dot */
 .cal-day-dot.note {
     background: var(--orange);

@@ -1117,13 +1117,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Auto-use already-selected object if still valid
+    const activeId = localStorage.getItem('activeObjectId');
+    if (activeId && objects.find(o => o.id === activeId)) {
+        await _initAppUI();
+        return;
+    }
+
     if (objects.length === 1) {
-        // Auto-select single object
         localStorage.setItem('activeObjectId', objects[0].id);
         await _initAppUI();
         return;
     }
 
-    // Multiple objects — show selection screen every session
+    // No valid active object and multiple to choose from
     showObjectSelectOverlay();
 });
