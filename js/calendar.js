@@ -310,6 +310,7 @@ const CalendarModule = (() => {
         if (entry) {
             const status = getDayStatus(entry);
             const items = parseItems(entry.description);
+            const hasTaskItems = items.some(it => it.text.trim());
 
             const tasksHtml = items.map((item, idx) => `
                 <div class="cal-detail-task">
@@ -339,6 +340,11 @@ const CalendarModule = (() => {
             <button class="btn btn-outline" id="cal-reschedule-btn" style="margin-bottom:10px">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Перенести
+            </button>` : ''}
+            ${hasTaskItems ? `
+            <button class="btn btn-outline" id="cal-move-tasks-btn" style="margin-bottom:10px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                Перенести задачи
             </button>` : ''}
             <button class="btn btn-outline" id="cal-edit-btn" style="margin-bottom:10px">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -405,6 +411,11 @@ const CalendarModule = (() => {
                 setTimeout(() => openRescheduleSheet(ds, entry), 320);
             });
 
+            content.querySelector('#cal-move-tasks-btn')?.addEventListener('click', () => {
+                App.hideBottomSheet();
+                setTimeout(() => openMoveTasksSheet(ds, entry), 320);
+            });
+
             content.querySelector('#cal-edit-btn').addEventListener('click', () => {
                 App.hideBottomSheet();
                 setTimeout(() => openEditForm(ds, entry), 320);
@@ -431,6 +442,114 @@ const CalendarModule = (() => {
                 setTimeout(() => openEditForm(ds, null), 320);
             });
         }
+    }
+
+    // ===== Move tasks to another day =====
+
+    function openMoveTasksSheet(ds, entry) {
+        const [y, m, d] = ds.split('-').map(Number);
+        const dateLabel = `${d} ${App.MONTHS_RU[m - 1]} ${y}`;
+        const items = parseItems(entry.description).filter(it => it.text.trim());
+        const allTaskIds = entry.task_ids || [];
+
+        const itemsHtml = items.map((item, i) => `
+            <label class="cal-task-picker-item">
+                <input type="checkbox" class="cal-move-cb" value="${i}" checked>
+                <span style="flex:1">${escapeHtml(item.text)}${item.checked
+                    ? ' <span style="color:var(--text-muted);font-size:11px">(выполнено)</span>'
+                    : ''}</span>
+            </label>`).join('');
+
+        const html = `
+        <div class="bs-header">
+            <button class="icon-btn" id="bs-close-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="bs-title">Перенести задачи</span>
+            <div style="width:40px"></div>
+        </div>
+        <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Из: <strong style="color:var(--text-primary)">${dateLabel}</strong></div>
+        <div class="form-group">
+            <label class="form-label">Выберите задачи</label>
+            <div class="cal-task-picker-list" id="move-items-list">${itemsHtml}</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Перенести на дату</label>
+            <input type="date" class="form-control" id="move-target-date">
+        </div>
+        <button class="btn btn-primary" id="move-confirm-btn">Перенести</button>`;
+
+        const content = App.showBottomSheet(html);
+        content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
+
+        content.querySelector('#move-confirm-btn').addEventListener('click', async () => {
+            const targetDs = content.querySelector('#move-target-date').value;
+            if (!targetDs || targetDs === ds) {
+                App.showToast('Выберите другую дату', 'error');
+                return;
+            }
+
+            const selectedIndices = new Set(
+                Array.from(content.querySelectorAll('.cal-move-cb:checked')).map(cb => parseInt(cb.value))
+            );
+            if (!selectedIndices.size) {
+                App.showToast('Выберите задачи для переноса', 'error');
+                return;
+            }
+
+            const movedItems = items.filter((_, i) => selectedIndices.has(i)).map(it => ({ ...it, checked: false }));
+            const movedTaskIds = items.map((_, i) => allTaskIds[i] || '').filter((_, i) => selectedIndices.has(i));
+            const remainingItems = items.filter((_, i) => !selectedIndices.has(i));
+            const remainingTaskIds = items.map((_, i) => allTaskIds[i] || '').filter((_, i) => !selectedIndices.has(i));
+
+            try {
+                await App.withLoading(async () => {
+                    // Update or delete source entry
+                    const remainingDesc = serializeItems(remainingItems);
+                    if (remainingDesc || entry.hours || entry.note) {
+                        const updated = await Sheets.saveWorkLog({
+                            date: ds,
+                            hours: entry.hours,
+                            rate: entry.rate || App.getHourlyRate(),
+                            description: remainingDesc,
+                            task_ids: remainingTaskIds,
+                            note: entry.note || ''
+                        });
+                        const si = workLogs.findIndex(w => w.date === ds);
+                        if (si >= 0) workLogs[si] = updated;
+                    } else {
+                        await Sheets.deleteWorkLog(entry.id);
+                        workLogs = workLogs.filter(w => w.id !== entry.id);
+                    }
+
+                    // Append to target entry (create if doesn't exist)
+                    const targetEntry = getWorkLogForDate(targetDs);
+                    const targetItems = targetEntry
+                        ? parseItems(targetEntry.description).filter(it => it.text.trim())
+                        : [];
+                    const targetTaskIds = targetEntry ? (targetEntry.task_ids || []) : [];
+
+                    const savedTarget = await Sheets.saveWorkLog({
+                        date: targetDs,
+                        hours: targetEntry ? targetEntry.hours : 0,
+                        rate: targetEntry ? targetEntry.rate : App.getHourlyRate(),
+                        description: serializeItems([...targetItems, ...movedItems]),
+                        task_ids: [...targetTaskIds, ...movedTaskIds],
+                        note: targetEntry ? (targetEntry.note || '') : ''
+                    });
+                    const ti = workLogs.findIndex(w => w.date === targetDs);
+                    if (ti >= 0) workLogs[ti] = savedTarget;
+                    else workLogs.push(savedTarget);
+                });
+
+                const [ty, tm, td] = targetDs.split('-').map(Number);
+                App.hideBottomSheet();
+                render();
+                App.showToast(`${selectedIndices.size === 1 ? 'Задача перенесена' : 'Задачи перенесены'} на ${td} ${App.MONTHS_RU[tm - 1]}`);
+            } catch (err) {
+                App.handleError(err, 'Перенос задач');
+            }
+        });
     }
 
     // ===== Reschedule =====
