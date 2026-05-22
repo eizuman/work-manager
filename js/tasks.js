@@ -746,8 +746,10 @@ const TasksModule = (() => {
         tagSearch.addEventListener('focus', () => renderDropdown(tagSearch.value));
 
         document.addEventListener('click', function closeDropdown(e) {
-            if (!content.contains(e.target)) {
+            if (!tagDropdown.contains(e.target) && e.target !== tagSearch) {
                 tagDropdown.classList.add('hidden');
+            }
+            if (!content.contains(e.target)) {
                 document.removeEventListener('click', closeDropdown);
             }
         });
