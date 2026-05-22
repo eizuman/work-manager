@@ -492,7 +492,7 @@ async function getTasks(forceRefresh) {
 
 async function addTask(data) {
     const tasks = await getTasks();
-    const maxOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.order)) : 0;
+    const minOrder = tasks.length > 0 ? Math.min(...tasks.map(t => t.order)) : 10;
     const task = {
         id: generateId(),
         title: data.title,
@@ -501,7 +501,7 @@ async function addTask(data) {
         status: data.status || 'new',
         weather: data.weather || 'any',
         tags: data.tags || [],
-        order: maxOrder + 10,
+        order: minOrder - 10,
         created_at: nowIso(),
         completed_at: ''
     };
