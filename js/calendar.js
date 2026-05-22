@@ -853,7 +853,7 @@ const CalendarModule = (() => {
         <div class="form-group">
             <label class="form-label">Дата</label>
             <div class="form-control-with-icon">
-                <input type="date" class="form-control" id="cal-date" value="${ds}" readonly>
+                <input type="date" class="form-control" id="cal-date" value="${ds}">
                 <span class="form-control-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </span>
@@ -972,6 +972,8 @@ const CalendarModule = (() => {
         });
 
         content.querySelector('#cal-save-btn').addEventListener('click', async () => {
+            const newDs = content.querySelector('#cal-date').value;
+            if (!newDs) { App.showToast('Укажите дату', 'error'); return; }
             const hVal = Math.max(0, parseInt(content.querySelector('#cal-hours-h').value) || 0);
             const mVal = Math.min(59, Math.max(0, parseInt(content.querySelector('#cal-hours-m').value) || 0));
             const hours = hVal + mVal / 60;
@@ -986,14 +988,28 @@ const CalendarModule = (() => {
                 return;
             }
 
+            const dateChanged = isEdit && newDs !== ds;
+            if (dateChanged && getWorkLogForDate(newDs)) {
+                App.showToast('На эту дату уже есть запись', 'error');
+                return;
+            }
+
             try {
-                const saved = await App.withLoading(() => Sheets.saveWorkLog({
-                    date: ds, hours, rate, description, task_ids, note
-                }));
-                const idx = workLogs.findIndex(w => w.date === ds);
+                const saved = await App.withLoading(async () => {
+                    const entry = await Sheets.saveWorkLog({ date: newDs, hours, rate, description, task_ids, note });
+                    if (dateChanged) await Sheets.deleteWorkLog(existingEntry.id);
+                    return entry;
+                });
+                if (dateChanged) workLogs = workLogs.filter(w => w.id !== existingEntry.id);
+                const idx = workLogs.findIndex(w => w.date === newDs);
                 if (idx >= 0) workLogs[idx] = saved;
                 else workLogs.push(saved);
                 App.hideBottomSheet();
+                if (dateChanged) {
+                    const [ny, nm] = newDs.split('-').map(Number);
+                    currentYear = ny; currentMonth = nm - 1;
+                    await loadData();
+                }
                 render();
                 App.showToast('Сохранено');
             } catch (err) {
