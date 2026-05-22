@@ -744,15 +744,7 @@ const TasksModule = (() => {
 
         tagSearch.addEventListener('input', () => renderDropdown(tagSearch.value));
         tagSearch.addEventListener('focus', () => renderDropdown(tagSearch.value));
-
-        document.addEventListener('click', function closeDropdown(e) {
-            if (!tagDropdown.contains(e.target) && e.target !== tagSearch) {
-                tagDropdown.classList.add('hidden');
-            }
-            if (!content.contains(e.target)) {
-                document.removeEventListener('click', closeDropdown);
-            }
-        });
+        tagSearch.addEventListener('blur', () => setTimeout(() => tagDropdown.classList.add('hidden'), 150));
 
         tagDropdown.addEventListener('click', async (e) => {
             const selectItem = e.target.closest('[data-tag-select]');
