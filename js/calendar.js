@@ -286,6 +286,8 @@ const CalendarModule = (() => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             touchSrcCell = cell;
+            daysEl.style.userSelect = 'none';
+            daysEl.style.webkitUserSelect = 'none';
             touchTimer = setTimeout(() => {
                 touchSrcDate = cell.dataset.date;
                 touchDragging = true;
@@ -317,6 +319,8 @@ const CalendarModule = (() => {
         daysEl.addEventListener('touchend', (e) => {
             clearTimeout(touchTimer);
             touchTimer = null;
+            daysEl.style.userSelect = '';
+            daysEl.style.webkitUserSelect = '';
             if (!touchDragging) { touchSrcDate = null; touchSrcCell = null; return; }
 
             const touch = e.changedTouches[0];
@@ -338,6 +342,8 @@ const CalendarModule = (() => {
         daysEl.addEventListener('touchcancel', () => {
             clearTimeout(touchTimer);
             touchTimer = null;
+            daysEl.style.userSelect = '';
+            daysEl.style.webkitUserSelect = '';
             touchSrcDate = null;
             touchSrcCell = null;
             touchDragging = false;
