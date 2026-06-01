@@ -25,7 +25,7 @@ const _cache = {};
 const _sheetIds = {};
 
 async function _apiRequest(url, options = {}) {
-    const token = sessionStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
     if (!token) {
         window.location.href = 'index.html';
         throw new Error('No token');
@@ -41,7 +41,8 @@ async function _apiRequest(url, options = {}) {
     });
 
     if (res.status === 401) {
-        sessionStorage.clear();
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token_expires_at');
         window.location.href = 'index.html';
         throw new Error('Unauthorized');
     }

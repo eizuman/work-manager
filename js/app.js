@@ -13,9 +13,7 @@ let _appInitialized = false;
 
 // ===== Auth guard =====
 function checkAuth() {
-    const token = sessionStorage.getItem('access_token');
-    const expiresAt = parseInt(sessionStorage.getItem('token_expires_at') || '0');
-    if (!token || Date.now() > expiresAt - 60000) {
+    if (!isTokenValid()) {
         window.location.href = 'index.html';
         return false;
     }
@@ -545,7 +543,7 @@ function openSettings() {
             </button>
         </div>
     </div>
-    <div class="card" style="margin-bottom:20px">
+    <div class="card" style="margin-bottom:16px">
         <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Бэкап данных</label>
             <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Последний авто-бэкап: <span id="settings-last-backup">${lastBackupLabel}</span></div>
@@ -564,6 +562,12 @@ function openSettings() {
                 Восстановить из бэкапа
             </button>
         </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+        <button class="btn btn-outline" id="settings-logout-btn" style="font-size:14px;color:#e05252;border-color:#e05252">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Выйти из аккаунта
+        </button>
     </div>`;
 
     const content = showBottomSheet(html);
@@ -653,6 +657,11 @@ function openSettings() {
     content.querySelector('#settings-backup-restore-btn').addEventListener('click', () => {
         hideBottomSheet();
         setTimeout(() => openRestoreSheet(), 320);
+    });
+
+    content.querySelector('#settings-logout-btn').addEventListener('click', () => {
+        hideBottomSheet();
+        signOut();
     });
 }
 

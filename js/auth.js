@@ -11,17 +11,31 @@ let tokenClient = null;
 function initLogin() {
     const signInBtn = document.getElementById('sign-in-btn');
     const loadingOverlay = document.getElementById('loading-overlay');
+
+    // Already authenticated — go straight to app
+    if (isTokenValid()) {
+        window.location.href = 'app.html';
+        return;
+    }
+
     const checkGIS = setInterval(() => {
         if (window.google?.accounts?.oauth2) {
             clearInterval(checkGIS);
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CONFIG.CLIENT_ID,
                 scope: CONFIG.SCOPES,
-                prompt: 'select_account',
                 callback: handleAuthCallback
             });
-            signInBtn.removeAttribute('disabled');
-            signInBtn.classList.remove('loading');
+
+            const storedEmail = localStorage.getItem('user_email');
+            if (storedEmail) {
+                // Known user — try silent re-auth without showing any UI
+                loadingOverlay.classList.remove('hidden');
+                tokenClient.requestAccessToken({ prompt: '' });
+            } else {
+                signInBtn.removeAttribute('disabled');
+                signInBtn.classList.remove('loading');
+            }
         }
     }, 100);
 
@@ -30,8 +44,7 @@ function initLogin() {
             showAuthError('Загрузка... попробуйте через секунду');
             return;
         }
-        // Don't show overlay here — it can suppress the popup in some browsers
-        tokenClient.requestAccessToken();
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
     });
 
     document.getElementById('error-close')?.addEventListener('click', () => {
@@ -43,30 +56,41 @@ async function handleAuthCallback(response) {
     const loadingOverlay = document.getElementById('loading-overlay');
 
     if (response.error) {
-        showAuthError('Ошибка авторизации: ' + (response.error_description || response.error));
+        // Silent auth failed — reveal the sign-in button
+        loadingOverlay?.classList.add('hidden');
+        const signInBtn = document.getElementById('sign-in-btn');
+        if (signInBtn) {
+            signInBtn.removeAttribute('disabled');
+            signInBtn.classList.remove('loading');
+        }
+        // Only show an error message for explicit failures, not silent-auth fallbacks
+        const silentErrors = ['access_denied', 'interaction_required', 'popup_closed_by_user'];
+        if (!silentErrors.includes(response.error)) {
+            showAuthError('Ошибка авторизации: ' + (response.error_description || response.error));
+        }
         return;
     }
 
     try {
-        loadingOverlay.classList.remove('hidden');
+        loadingOverlay?.classList.remove('hidden');
         const userInfo = await getUserInfo(response.access_token);
 
         if (userInfo.email !== CONFIG.ALLOWED_EMAIL) {
             showAuthError('Доступ запрещён. Используйте аккаунт: ' + CONFIG.ALLOWED_EMAIL);
             google.accounts.oauth2.revoke(response.access_token, () => {});
-            loadingOverlay.classList.add('hidden');
+            loadingOverlay?.classList.add('hidden');
             return;
         }
 
         const expiresAt = Date.now() + (response.expires_in * 1000);
-        sessionStorage.setItem('access_token', response.access_token);
-        sessionStorage.setItem('token_expires_at', String(expiresAt));
-        sessionStorage.setItem('user_email', userInfo.email);
-        sessionStorage.setItem('user_name', userInfo.name || '');
+        localStorage.setItem('access_token', response.access_token);
+        localStorage.setItem('token_expires_at', String(expiresAt));
+        localStorage.setItem('user_email', userInfo.email);
+        localStorage.setItem('user_name', userInfo.name || '');
 
         window.location.href = 'app.html';
     } catch (err) {
-        loadingOverlay.classList.add('hidden');
+        loadingOverlay?.classList.add('hidden');
         showAuthError('Ошибка при входе. Попробуйте ещё раз.');
         console.error('Auth error:', err);
     }
@@ -86,27 +110,29 @@ function showAuthError(msg) {
     el.classList.remove('hidden');
 }
 
-// On app.html: check and provide auth utilities
 function getAccessToken() {
-    return sessionStorage.getItem('access_token');
+    return localStorage.getItem('access_token');
 }
 
 function isTokenValid() {
-    const token = sessionStorage.getItem('access_token');
-    const expiresAt = parseInt(sessionStorage.getItem('token_expires_at') || '0');
-    return token && Date.now() < expiresAt - 60000; // 1 min buffer
+    const token = localStorage.getItem('access_token');
+    const expiresAt = parseInt(localStorage.getItem('token_expires_at') || '0');
+    return !!(token && Date.now() < expiresAt - 60000);
 }
 
 function signOut() {
-    const token = sessionStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
     if (token && window.google?.accounts?.oauth2) {
         google.accounts.oauth2.revoke(token, () => {});
     }
-    sessionStorage.clear();
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token_expires_at');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_name');
     window.location.href = 'index.html';
 }
 
-// Initialize on login page
+// Initialize on login page only
 if (document.getElementById('sign-in-btn')) {
     window.addEventListener('load', initLogin);
 }
