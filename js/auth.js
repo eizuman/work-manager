@@ -31,6 +31,15 @@ function initLogin() {
             if (storedEmail) {
                 // Known user — try silent re-auth without showing any UI
                 loadingOverlay.classList.remove('hidden');
+
+                // Mobile browsers block unprompted popups — fall back to button if no response in 4s
+                window._silentAuthTimeout = setTimeout(() => {
+                    window._silentAuthTimeout = null;
+                    loadingOverlay.classList.add('hidden');
+                    signInBtn.removeAttribute('disabled');
+                    signInBtn.classList.remove('loading');
+                }, 4000);
+
                 tokenClient.requestAccessToken({ prompt: '' });
             } else {
                 signInBtn.removeAttribute('disabled');
@@ -53,6 +62,11 @@ function initLogin() {
 }
 
 async function handleAuthCallback(response) {
+    if (window._silentAuthTimeout) {
+        clearTimeout(window._silentAuthTimeout);
+        window._silentAuthTimeout = null;
+    }
+
     const loadingOverlay = document.getElementById('loading-overlay');
 
     if (response.error) {
