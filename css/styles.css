@@ -1023,6 +1023,83 @@ select.form-control {
     width: 100%;
 }
 
+/* Compact calendar for short mobile landscape viewports */
+@media (orientation: landscape) and (max-height: 599px) {
+    #module-calendar.active {
+        height: 100%;
+    }
+
+    .calendar-wrap {
+        height: 100%;
+        min-height: 0;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .calendar-nav {
+        flex-shrink: 0;
+        margin-bottom: 6px;
+    }
+
+    .calendar-month-title {
+        font-size: 17px;
+    }
+
+    .cal-nav-btn {
+        width: 32px;
+        height: 30px;
+    }
+
+    .calendar-grid {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .calendar-weekdays {
+        flex-shrink: 0;
+    }
+
+    .cal-weekday {
+        padding: 3px 0;
+        font-size: 11px;
+    }
+
+    .calendar-days {
+        flex: 1;
+        min-height: 0;
+        grid-auto-rows: minmax(0, 1fr);
+    }
+
+    .cal-day {
+        aspect-ratio: auto;
+        min-height: 0;
+    }
+
+    .cal-day-num {
+        font-size: 12px;
+    }
+
+    .cal-day.today .cal-day-inner {
+        width: 24px;
+        height: 24px;
+    }
+
+    .cal-day-dot {
+        width: 4px;
+        height: 4px;
+        bottom: 3px;
+    }
+
+    .cal-day-note-icon {
+        width: 12px;
+        height: 12px;
+        font-size: 8px;
+    }
+}
+
 /* Checklist in calendar edit form */
 .cal-checklist {
     display: flex;
