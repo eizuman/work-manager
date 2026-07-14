@@ -421,7 +421,20 @@ async function _recalcAllBalances() {
     for (const e of entries) {
         bal += e.type === 'work' ? e.amount : -e.amount;
         e.balance = bal;
-        await updateRow('finance', e._rowIndex, _financeToRow(e));
+    }
+
+    if (entries.length > 0) {
+        const sid = _requireSheetId();
+        await _apiRequest(`${SHEETS_CONFIG.API_BASE}/${sid}/values:batchUpdate`, {
+            method: 'POST',
+            body: JSON.stringify({
+                valueInputOption: 'RAW',
+                data: entries.map(e => ({
+                    range: `finance!E${e._rowIndex}`,
+                    values: [[e.balance]]
+                }))
+            })
+        });
     }
     invalidateCache('finance');
 }
@@ -438,6 +451,8 @@ async function _syncWorkFinance(workEntry, oldAmount) {
     // Look for existing finance row with this work log date
     const existing = finEntries.find(f => f.type === 'work' && f.description === workEntry.date);
     if (existing) {
+        // Description/checklist/note-only edits do not change finance.
+        if (existing.amount === workEntry.amount) return;
         const updated = { ...existing, amount: workEntry.amount, timestamp: nowIso() };
         await updateRow('finance', existing._rowIndex, _financeToRow(updated));
     } else {
