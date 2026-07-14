@@ -918,7 +918,7 @@ const CalendarModule = (() => {
         <button class="btn btn-primary" id="cal-save-btn" style="margin-bottom:10px">Сохранить</button>
         ${isEdit ? '<button class="btn btn-danger" id="cal-del-btn">Удалить запись</button>' : ''}`;
 
-        const content = App.showBottomSheet(html);
+        const content = App.showBottomSheet(html, null, { dismissible: false });
         content.querySelector('#bs-close-btn').addEventListener('click', App.hideBottomSheet);
 
         // Init checklist

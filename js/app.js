@@ -102,14 +102,16 @@ function switchModule(name) {
 // ===== Global UI utilities =====
 
 let bsCloseCallback = null;
+let bsDismissible = true;
 
-function showBottomSheet(contentHtml, onClose) {
+function showBottomSheet(contentHtml, onClose, options = {}) {
     const overlay = document.getElementById('bs-overlay');
     const sheet = document.getElementById('bottom-sheet');
     const content = document.getElementById('bs-content');
 
     content.innerHTML = contentHtml;
     bsCloseCallback = onClose || null;
+    bsDismissible = options.dismissible !== false;
 
     overlay.classList.remove('hidden');
     sheet.setAttribute('aria-hidden', 'false');
@@ -468,8 +470,10 @@ async function _initAppUI() {
     // Object switcher — desktop sidebar
     document.getElementById('sidebar-object-switch').addEventListener('click', showObjectSelectOverlay);
 
-    // Close bottom sheet on overlay click
-    document.getElementById('bs-overlay').addEventListener('click', hideBottomSheet);
+    // Close dismissible bottom sheets on overlay click
+    document.getElementById('bs-overlay').addEventListener('click', () => {
+        if (bsDismissible) hideBottomSheet();
+    });
 
     // Swipe down to close bottom sheet
     let bsTouchStartY = 0;
@@ -479,7 +483,7 @@ async function _initAppUI() {
     }, { passive: true });
     sheet.addEventListener('touchend', (e) => {
         const dy = e.changedTouches[0].clientY - bsTouchStartY;
-        if (dy > 80) hideBottomSheet();
+        if (bsDismissible && dy > 80) hideBottomSheet();
     }, { passive: true });
 
     // Settings button (sidebar)
