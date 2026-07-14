@@ -698,7 +698,19 @@ async function _readSheetRaw(spreadsheetId, sheetName) {
         const url = `${SHEETS_CONFIG.API_BASE}/${spreadsheetId}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`;
         const data = await _apiRequest(url);
         return (data && data.values) ? data.values : [];
-    } catch (_) { return []; }
+    } catch (error) {
+        const detail = error && error.message ? `: ${error.message}` : '';
+        const wrapped = new Error(`Не удалось прочитать лист «${sheetName}»${detail}`);
+        wrapped.code = error && error.code;
+        wrapped.cause = error;
+        throw wrapped;
+    }
+}
+
+function _assertSheetCopyMatches(sheetName, sourceRows, backupRows) {
+    if (JSON.stringify(sourceRows) !== JSON.stringify(backupRows)) {
+        throw new Error(`Проверка бэкапа не пройдена для листа «${sheetName}»`);
+    }
 }
 
 async function createObjectSpreadsheet(name) {
@@ -749,7 +761,13 @@ async function createBackup() {
         });
     }
 
-    // 4. Save backup entry to settings (keep last 10)
+    // 4. Read the new spreadsheet back before registering it as a valid backup
+    for (const sheet of _BACKUP_SHEETS) {
+        const copiedRows = await _readSheetRaw(newId, sheet);
+        _assertSheetCopyMatches(sheet, sheetData[sheet], copiedRows);
+    }
+
+    // 5. Save backup entry to settings (keep last 10)
     const settings = await getSettings();
     const list = JSON.parse(settings.backups || '[]');
     list.unshift({ id: newId, date: dateStr, time: timeStr, title });
@@ -775,13 +793,12 @@ async function restoreBackup(backupId) {
         sheetData[sheet] = await _readSheetRaw(backupId, sheet);
     }
 
-    // Also read hourly_rate from backup settings
+    // Also read hourly_rate from backup settings. A missing or unreadable settings
+    // sheet must abort the restore before any target sheet is cleared.
     let backupRate = null;
-    try {
-        const settingsRows = await _readSheetRaw(backupId, 'settings');
-        const rateRow = settingsRows.find(r => String(r[0]) === 'hourly_rate');
-        if (rateRow) backupRate = rateRow[1];
-    } catch (_) {}
+    const settingsRows = await _readSheetRaw(backupId, 'settings');
+    const rateRow = settingsRows.find(r => String(r[0]) === 'hourly_rate');
+    if (rateRow) backupRate = rateRow[1];
 
     // 2. Clear and rewrite each data sheet
     for (const sheet of DATA_SHEETS) {
