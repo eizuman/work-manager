@@ -174,7 +174,7 @@ const FinanceModule = (() => {
         const cls = isWork ? 'tx-work' : 'tx-pay';
         const hoursStr = isWork ? workHoursStr(e) : '';
         const label = isWork
-            ? `Смена ${App.formatDate(e.date)}${hoursStr ? ', ' + hoursStr : ''}`
+            ? `Смена${hoursStr ? ', ' + hoursStr : ''}`
             : (e.description || TYPE_LABELS[e.type] || e.type);
         return `
         <div class="tx-item" data-id="${e.id}">

@@ -1357,9 +1357,9 @@ select.form-control {
 .tx-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 5px 8px;
     border-bottom: 1px solid var(--border);
-    gap: 10px;
+    gap: 6px;
 }
 
 .tx-item:last-child { border-bottom: none; }
@@ -1367,15 +1367,20 @@ select.form-control {
 .tx-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .tx-date {
     font-size: 12px;
     color: var(--text-muted);
-    margin-bottom: 1px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .tx-desc {
+    min-width: 0;
     font-size: 15px;
     font-weight: 500;
     color: var(--text-primary);
@@ -1414,8 +1419,8 @@ select.form-control {
 }
 
 .tx-action-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2538,6 +2543,7 @@ canvas {
     .tx-desc { font-size: 14px; padding-right: 16px; }
     .tx-amount { text-align: right; padding-right: 8px; }
     .tx-actions { justify-content: flex-end; }
+    .tx-action-btn { width: 32px; height: 32px; }
 
 /* ===== TASKS DESKTOP ===== */
     .tasks-wrap { padding: 0; }
