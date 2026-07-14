@@ -26,9 +26,13 @@ const _sheetIds = {};
 
 async function _apiRequest(url, options = {}) {
     const token = localStorage.getItem('access_token');
-    if (!token) {
-        window.location.href = 'index.html';
-        throw new Error('No token');
+    if (!token || !isTokenValid()) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token_expires_at');
+        const err = new Error('Сессия истекла');
+        err.code = 'AUTH_REQUIRED';
+        window.dispatchEvent(new CustomEvent('auth-required'));
+        throw err;
     }
 
     const res = await fetch(url, {
@@ -43,8 +47,10 @@ async function _apiRequest(url, options = {}) {
     if (res.status === 401) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('token_expires_at');
-        window.location.href = 'index.html';
-        throw new Error('Unauthorized');
+        const err = new Error('Сессия истекла');
+        err.code = 'AUTH_REQUIRED';
+        window.dispatchEvent(new CustomEvent('auth-required'));
+        throw err;
     }
 
     if (!res.ok) {

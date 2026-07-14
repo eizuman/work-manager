@@ -137,6 +137,16 @@
         </div>
     </div>
 
+    <!-- Session Re-authentication Overlay -->
+    <div id="session-expired-overlay" class="session-expired-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="session-expired-title">
+        <div class="session-expired-card">
+            <h2 id="session-expired-title" class="session-expired-title">Сессия истекла</h2>
+            <p class="session-expired-text">Войдите снова, чтобы сохранить изменения. Введённые данные останутся в форме.</p>
+            <p id="session-expired-error" class="session-expired-error hidden"></p>
+            <button id="session-reauth-btn" class="google-btn session-reauth-btn">Войти снова через Google</button>
+        </div>
+    </div>
+
     <!-- Object Select Overlay -->
     <div id="object-select-overlay" class="object-select-overlay hidden">
         <div class="object-select-card">

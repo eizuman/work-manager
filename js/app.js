@@ -20,6 +20,49 @@ function checkAuth() {
     return true;
 }
 
+function showSessionExpiredOverlay() {
+    const overlay = document.getElementById('session-expired-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    document.getElementById('session-expired-error')?.classList.add('hidden');
+}
+
+function hideSessionExpiredOverlay() {
+    document.getElementById('session-expired-overlay')?.classList.add('hidden');
+}
+
+function setupSessionGuard() {
+    const overlay = document.getElementById('session-expired-overlay');
+    const button = document.getElementById('session-reauth-btn');
+    const errorEl = document.getElementById('session-expired-error');
+    if (!overlay || !button || !errorEl) return;
+
+    window.addEventListener('auth-required', showSessionExpiredOverlay);
+    window.addEventListener('focus', () => {
+        if (!isTokenValid()) showSessionExpiredOverlay();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !isTokenValid()) showSessionExpiredOverlay();
+    });
+
+    button.addEventListener('click', async () => {
+        button.disabled = true;
+        button.textContent = 'Вход...';
+        errorEl.classList.add('hidden');
+        try {
+            await reauthenticateInApp();
+            hideSessionExpiredOverlay();
+            showToast('Сессия восстановлена. Нажмите «Сохранить» ещё раз.', 'info');
+        } catch (err) {
+            errorEl.textContent = err.message || 'Не удалось войти. Попробуйте ещё раз.';
+            errorEl.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Войти снова через Google';
+        }
+    });
+}
+
 const isDesktop = () => window.innerWidth >= 768;
 
 // ===== Module switching =====
@@ -146,6 +189,10 @@ async function withLoading(fn) {
 
 function handleError(err, context = '') {
     console.error(context, err);
+    if (err?.code === 'AUTH_REQUIRED') {
+        showSessionExpiredOverlay();
+        return;
+    }
     const msg = err.message || 'Произошла ошибка';
     showToast((context ? context + ': ' : '') + msg, 'error');
 }
@@ -1111,6 +1158,7 @@ window.App = {
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
+    setupSessionGuard();
 
     // Sync objects from shared registry (cross-device)
     await syncObjectsFromRegistry();

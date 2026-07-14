@@ -502,6 +502,55 @@ select.form-control {
     padding: 12px 16px;
 }
 
+/* ===== Session Re-authentication ===== */
+.session-expired-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(26, 46, 16, 0.5);
+    backdrop-filter: blur(3px);
+}
+
+.session-expired-overlay.hidden { display: none; }
+
+.session-expired-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 24px 20px;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    text-align: center;
+}
+
+.session-expired-title {
+    margin-bottom: 8px;
+    font-size: 20px;
+    color: var(--green-dark);
+}
+
+.session-expired-text {
+    margin-bottom: 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.session-expired-error {
+    margin-bottom: 12px;
+    color: var(--red-medium);
+    font-size: 13px;
+}
+
+.session-expired-error.hidden { display: none; }
+
+.session-reauth-btn {
+    margin: 0;
+}
+
 /* ===== Toast ===== */
 .toast {
     position: fixed;

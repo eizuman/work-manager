@@ -171,7 +171,7 @@ README исходной версии указывал GitHub Pages как hostin
 
 ### `401 Unauthorized`
 
-`sheets.js` удаляет token и expiry и переводит на `index.html`. Выполните вход снова. Access token не имеет refresh token; продление происходит новым token request через GIS.
+В уже открытом `app.html` `sheets.js` удаляет token и expiry и показывает session overlay без перезагрузки страницы. После повторного входа введённые поля остаются в DOM; сохранение нужно запустить ещё раз вручную. При первоначальной загрузке страницы с истёкшим token приложение по-прежнему переходит на `index.html`. Access token не имеет refresh token; продление происходит новым token request через GIS.
 
 ### `403` от Google Sheets
 

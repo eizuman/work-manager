@@ -7,6 +7,15 @@ const CONFIG = {
 };
 
 let tokenClient = null;
+let appReauthPending = null;
+
+function saveAuthSession(response, userInfo) {
+    const expiresAt = Date.now() + (response.expires_in * 1000);
+    localStorage.setItem('access_token', response.access_token);
+    localStorage.setItem('token_expires_at', String(expiresAt));
+    localStorage.setItem('user_email', userInfo.email);
+    localStorage.setItem('user_name', userInfo.name || '');
+}
 
 function initLogin() {
     const signInBtn = document.getElementById('sign-in-btn');
@@ -96,11 +105,7 @@ async function handleAuthCallback(response) {
             return;
         }
 
-        const expiresAt = Date.now() + (response.expires_in * 1000);
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('token_expires_at', String(expiresAt));
-        localStorage.setItem('user_email', userInfo.email);
-        localStorage.setItem('user_name', userInfo.name || '');
+        saveAuthSession(response, userInfo);
 
         window.location.href = 'app.html';
     } catch (err) {
@@ -116,6 +121,64 @@ async function getUserInfo(token) {
     });
     if (!res.ok) throw new Error('Failed to get user info');
     return res.json();
+}
+
+function initAppAuth() {
+    const checkGIS = setInterval(() => {
+        if (!window.google?.accounts?.oauth2) return;
+        clearInterval(checkGIS);
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CONFIG.CLIENT_ID,
+            scope: CONFIG.SCOPES,
+            callback: handleAppReauthCallback
+        });
+    }, 100);
+}
+
+async function handleAppReauthCallback(response) {
+    const pending = appReauthPending;
+    appReauthPending = null;
+    if (!pending) return;
+
+    if (response.error) {
+        pending.reject(new Error(response.error_description || response.error));
+        return;
+    }
+
+    try {
+        const userInfo = await getUserInfo(response.access_token);
+        if (userInfo.email !== CONFIG.ALLOWED_EMAIL) {
+            google.accounts.oauth2.revoke(response.access_token, () => {});
+            throw new Error('Доступ запрещён. Используйте аккаунт: ' + CONFIG.ALLOWED_EMAIL);
+        }
+        saveAuthSession(response, userInfo);
+        pending.resolve(userInfo);
+    } catch (err) {
+        pending.reject(err);
+    }
+}
+
+function reauthenticateInApp() {
+    if (!tokenClient) {
+        return Promise.reject(new Error('Google авторизация ещё загружается. Попробуйте через секунду.'));
+    }
+    if (appReauthPending) return appReauthPending.promise;
+
+    let resolvePending;
+    let rejectPending;
+    const promise = new Promise((resolve, reject) => {
+        resolvePending = resolve;
+        rejectPending = reject;
+    });
+    appReauthPending = { promise, resolve: resolvePending, reject: rejectPending };
+
+    try {
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch (err) {
+        appReauthPending = null;
+        rejectPending(err);
+    }
+    return promise;
 }
 
 function showAuthError(msg) {
@@ -146,7 +209,8 @@ function signOut() {
     window.location.href = 'index.html';
 }
 
-// Initialize on login page only
 if (document.getElementById('sign-in-btn')) {
     window.addEventListener('load', initLogin);
+} else if (document.getElementById('session-expired-overlay')) {
+    window.addEventListener('load', initAppAuth);
 }
