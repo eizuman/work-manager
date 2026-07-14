@@ -230,7 +230,7 @@ Roadmap основан на текущем коде и техническом а
 
 ### M-1. Удалить или обосновать неиспользуемые объявления
 
-- **Проблема:** не вызываются `getAccessToken()`, `getObjectCode()`, `isDesktop`, `_recalcBalances()`, `renderTagsManage()`; не используются `CONFIG.SPREADSHEET_ID`, `CONFIG.HOURLY_RATE` и параметр `oldAmount`.
+- **Проблема:** не вызываются `getAccessToken()`, `getObjectCode()`, `isDesktop`, `_recalcBalances()`, `renderTagsManage()`; не используются `CONFIG.SPREADSHEET_ID` и `CONFIG.HOURLY_RATE`.
 - **Ожидаемый результат:** код не содержит ложных точек расширения и дублирующей конфигурации.
 - **Затрагиваемые модули:** `js/auth.js`, `js/app.js`, `js/sheets.js`, `js/tasks.js`.
 - **Риск:** низкий — путаница и ошибочное использование устаревших путей.

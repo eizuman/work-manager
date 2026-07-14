@@ -447,12 +447,13 @@ async function deleteFinanceEntry(id) {
 }
 
 async function _syncWorkFinance(workEntry, oldAmount) {
+    // Non-financial edits (description, checklist, note, task links) need no finance request.
+    if (oldAmount === workEntry.amount) return;
+
     const finEntries = await getFinanceEntries(true);
     // Look for existing finance row with this work log date
     const existing = finEntries.find(f => f.type === 'work' && f.description === workEntry.date);
     if (existing) {
-        // Description/checklist/note-only edits do not change finance.
-        if (existing.amount === workEntry.amount) return;
         const updated = { ...existing, amount: workEntry.amount, timestamp: nowIso() };
         await updateRow('finance', existing._rowIndex, _financeToRow(updated));
     } else {
