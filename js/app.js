@@ -63,7 +63,7 @@ function setupSessionGuard() {
     });
 }
 
-const isDesktop = () => window.innerWidth >= 768;
+const isDesktop = () => window.innerWidth >= 768 && window.innerHeight >= 600;
 
 // ===== Module switching =====
 function switchModule(name) {

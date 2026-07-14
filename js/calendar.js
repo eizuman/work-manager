@@ -207,7 +207,7 @@ const CalendarModule = (() => {
 
         const todayBtn = document.getElementById('cal-today');
         if (todayBtn) {
-            if (window.innerWidth >= 768) todayBtn.style.display = '';
+            if (window.innerWidth >= 768 && window.innerHeight >= 600) todayBtn.style.display = '';
             todayBtn.addEventListener('click', () => {
                 currentYear = today.getFullYear();
                 currentMonth = today.getMonth();

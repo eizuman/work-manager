@@ -112,7 +112,7 @@ git diff --stat
 ```powershell
 rg -n "[ \t]+$" AGENTS.md README.md docs css js
 rg -n '<script src=' index.html app.html
-rg -n '768|@media|innerWidth' css js
+rg -n '768|600|@media|innerWidth|innerHeight' css js
 rg -n 'Columns:|_BACKUP_SHEETS|ALL_SHEETS|DATA_SHEETS' js/sheets.js
 ```
 
@@ -128,7 +128,7 @@ rg -n 'Columns:|_BACKUP_SHEETS|ALL_SHEETS|DATA_SHEETS' js/sheets.js
 4. Создание, редактирование и удаление затронутой сущности.
 5. Reload страницы после записи, чтобы исключить ошибку memory cache.
 6. Переключение на другой объект и обратно.
-7. Mobile viewport меньше `768px` и desktop viewport от `768px`.
+7. Mobile viewport, включая горизонтальную ориентацию с высотой меньше `600px`, и desktop viewport от `768px` по ширине и `600px` по высоте.
 8. Ошибку Google API: пользователь должен получить понятное уведомление.
 
 Для изменений календаря дополнительно проверяйте соответствующую строку finance. Для изменений задач — ссылки на календарь, закупки, теги и исполнителей.

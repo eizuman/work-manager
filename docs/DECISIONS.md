@@ -58,7 +58,7 @@
 - Зафиксировано: 30 апреля 2026, `6264e2d` — desktop sidebar, table views и responsive modules.
 - Существенная mobile переработка: 2 мая 2026, `496e699`.
 
-Одна кодовая база обслуживает mobile bottom navigation и desktop sidebar. Desktop breakpoint равен 768 px.
+Одна кодовая база обслуживает mobile bottom navigation и desktop sidebar. Desktop layout включается при viewport не меньше 768 px по ширине и 600 px по высоте, чтобы мобильные устройства в горизонтальной ориентации сохраняли mobile layout.
 
 Следствие: UI-изменения должны проверяться в обоих режимах; нельзя считать один layout производным и непроверяемым.
 
